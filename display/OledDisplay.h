@@ -2,6 +2,7 @@
 #define MICRO_OLED_H
 
 #include "spark_wiring.h"
+#include "common.h"
 
 // Clear actions
 #define CLEAR_BUFF      0x01
@@ -91,8 +92,8 @@ class OledDisplay {
     void line(int begX, int begY, int endX, int endY);
     // Text
     void setFont(int fontId);
-    void writeChar(int x, int y, char c);
-    void writeText(int x, int y, char *text);
+    void writeChar(int x, int y, const char c);
+    void writeText(int x, int y, const char *text);
 
   private:
     void selectDevice(bool enable, bool command);
