@@ -3,7 +3,7 @@
 #define RHT03_H
 #include "spark_wiring.h"
 
-#define MSG_BITS 42 // 40 data bits, and 2 bits to start transmission
+#define MSG_BITS 40 // 40 data bits, and 2 bits to start transmission
 
 /*!
  * RHT03 Temperature and Relative Humidity library
@@ -26,6 +26,7 @@ class RHT03 {
     int getTemp();  //! Returns temp * 10, 315 = 31.5c
     int getRH();    //! Returns RH * 10, 585 = 58.5rh
     int getChecksum();  //! (debugging)
+    int getIntCount();  //! (debugging)
     void handleInterrupt();
 
   private:

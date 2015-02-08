@@ -40,15 +40,16 @@ void RHT03::update() {
   intCount = 0;
   intFirst = true;
   acquiring = true;
+  lastInt = 0;
   digitalWrite(ioPin, LOW);
   delay(10); // pull low for 1-10ms
   digitalWrite(ioPin, HIGH);
   delayMicroseconds(40); // pull low for 20-40us
   // Then prepare for reading
   pinMode(ioPin, INPUT_PULLUP);
-  attachInterrupt(ioPin, interruptHandler, CHANGE);
+  attachInterrupt(ioPin, interruptHandler, FALLING);
 
-  digitalWrite(ledPin, HIGH);
+  // digitalWrite(ledPin, HIGH);
 }
 
 int RHT03::getTemp() {
@@ -66,12 +67,8 @@ int RHT03::getRH() {
  * These durations between falling edges determine the data type
  */
 void RHT03::handleInterrupt() {
-  if (digitalRead(ioPin) == HIGH) {
-    lastInt = micros(); // just record when it happened
-    return;
-  } else if (intFirst) {
-    // THe first two interrupts are the preparation for sending
-    intFirst = false;
+  if (lastInt == 0) { // first falling event, ignore
+    lastInt = micros();
     return;
   }
 
@@ -85,9 +82,15 @@ void RHT03::handleInterrupt() {
     dur = UINT32_MAX - lastInt + now;
   }
 
+  lastInt = micros();
+
+  if (dur > 140) {
+    digitalWrite(ledPin, HIGH);
+    return;
+  }
+
   if (intCount < MSG_BITS) { // protect from overrun
-    // 26-28us = 0, 70us = 1
-    bits[intCount++] = dur > 50 ? 0x1 : 0x0;
+    bits[intCount++] = dur < 100 ? 0x0 : 0x1;
   }
 
   if (intCount == MSG_BITS) { // last bit received
@@ -100,6 +103,9 @@ void RHT03::handleInterrupt() {
   }
 }
 
+int RHT03::getIntCount() {
+  return intCount;
+}
 int RHT03::getChecksum() {
   return checksum;
 }
@@ -122,8 +128,6 @@ void RHT03::convertBits() {
       newCS |= bits[i];
     }
   }
-  lastTemp = newTemp;
-  lastRH = newRH;
 
   // validate
   byte sum = 0;
@@ -138,6 +142,8 @@ void RHT03::convertBits() {
 
   checksum = newCS * (sum == newCS ? 1 : -1);
 
-  lastTemp = newTemp;
-  lastRH = newRH;
+  if (sum == newCS) {
+    lastTemp = newTemp;
+    lastRH = newRH;
+  }
 }
