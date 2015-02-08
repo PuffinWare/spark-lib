@@ -15,9 +15,10 @@ RHT03::RHT03(int io, int led) {
   acquiring = false;
   lastTemp = 0;
   lastRH = 0;
+  checksum = 0;
   intCount = 0;
   for (int i=0; i<MSG_BITS; i++) {
-    bits[i]=false;
+    bits[i]=0x0;
   }
 
   // Start with a HIGH mode
@@ -25,6 +26,10 @@ RHT03::RHT03(int io, int led) {
   digitalWrite(ioPin, HIGH);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
+}
+
+void RHT03::poll() {
+
 }
 
 void RHT03::update() {
@@ -53,21 +58,22 @@ int RHT03::getTemp() {
 int RHT03::getRH() {
   return lastRH;
 }
-
-// void RHT03::interruptHandler() {
-
-// }
-
+/*!
+ * Once the device is triggered to transmit, there will be 3 pulse types:
+ * - low 80us -> high 80us - start sending  (160us)
+ * - low 50us -> high 26-28us - 0 bit       (76-78Us)
+ * - low 50us -> high 70us - 1 bit          (129us)
+ * These durations between falling edges determine the data type
+ */
 void RHT03::handleInterrupt() {
   if (digitalRead(ioPin) == HIGH) {
     lastInt = micros(); // just record when it happened
     return;
   } else if (intFirst) {
-    // THe first low interrupt is the preparation for sending
+    // THe first two interrupts are the preparation for sending
     intFirst = false;
     return;
   }
-  digitalWrite(ledPin, LOW);
 
   // Falling edge tells us how long it's been high, determining 0 or 1
   unsigned long now = micros();
@@ -94,38 +100,44 @@ void RHT03::handleInterrupt() {
   }
 }
 
-int RHT03::getIntCount() {
-  return intCount;
+int RHT03::getChecksum() {
+  return checksum;
 }
 
 void RHT03::convertBits() {
-  int newTemp = 0;
+  uint newTemp = 0;
   uint newRH = 0;
-  uint checkSum = 0;
+  byte newCS = 0;
 
+  // The first 2 interrupts start the message
   for (int i=0; i<40; i++) {
-    if (i < 8) {
+    if (i < 16) {
       newRH = newRH << 1;
       newRH |= bits[i];
-    } else if (i < 16) {
+    } else if (i < 32) {
       newTemp = newTemp << 1;
       newTemp |= bits[i];
     } else {
-      checkSum = checkSum << 1;
-      checkSum |= bits[i];
+      newCS = newCS << 1;
+      newCS |= bits[i];
     }
   }
+  lastTemp = newTemp;
+  lastRH = newRH;
 
   // validate
   byte sum = 0;
-  byte b = 0;
-  for (int i=0; i<32; i++) {
-    b = b << 1;
-    if (i%8 == 0) {
-      sum += b;
-    }
-  }
-  intCount = (sum == checkSum ? 1 : 0);
+  byte b = newTemp & 0xff; // temp low byte
+  sum += b;
+  b = newTemp >> 8;
+  sum += b;
+  b = newRH & 0xff; // temp low byte
+  sum += b;
+  b = newRH >> 8;
+  sum += b;
+
+  checksum = newCS * (sum == newCS ? 1 : -1);
+
   lastTemp = newTemp;
   lastRH = newRH;
 }

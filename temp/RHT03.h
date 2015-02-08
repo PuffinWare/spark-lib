@@ -3,8 +3,7 @@
 #define RHT03_H
 #include "spark_wiring.h"
 
-#define MSG_BITS 40
-class RHT03;
+#define MSG_BITS 42 // 40 data bits, and 2 bits to start transmission
 
 /*!
  * RHT03 Temperature and Relative Humidity library
@@ -22,12 +21,12 @@ class RHT03 {
      */
     RHT03(int ioPin, int ledPin);
 
-    void update();   //! Call this periodically to update the stored temp values
+    void poll();    //! Call this on the main poll loop and it will keep the data updated
+    void update();  //! Call this periodically to manually update the values
     int getTemp();  //! Returns temp * 10, 315 = 31.5c
     int getRH();    //! Returns RH * 10, 585 = 58.5rh
-    int getIntCount();    //! returns number of interrupts (debugging)
+    int getChecksum();  //! (debugging)
     void handleInterrupt();
-    // static RHT03 *thisX;
 
   private:
     // static void interruptHandler();
@@ -37,6 +36,7 @@ class RHT03 {
     volatile int ledPin;     //! The IO Pin for the status LED
     volatile int lastTemp;   //! The last updated temperature
     volatile int lastRH;     //! The last updated relative humidity
+    volatile int checksum;
     volatile bool intFirst;  //! Is this the first interrupt
     volatile bool acquiring; //! Currently acquiring a reading
     volatile int intCount;   //! The number of interrupts, and bits received
