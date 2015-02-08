@@ -6,6 +6,14 @@
 #define MSG_BITS 40
 class RHT03;
 
+/*!
+ * RHT03 Temperature and Relative Humidity library
+ * Device uses single pin bi-directional 40-bit serial
+ * communication. This library uses interrupts to read
+ * bits since the duration of the pin being HIGH denotes
+ * a 0 or 1 bit. Using interruptes was much cleaner than
+ * delay-check-loop logic.
+ */
 class RHT03 {
   public:
     /*! Constructor
@@ -30,7 +38,7 @@ class RHT03 {
     volatile int lastTemp;   //! The last updated temperature
     volatile int lastRH;     //! The last updated relative humidity
     volatile bool intFirst;  //! Is this the first interrupt
-    volatile bool acquiring;
+    volatile bool acquiring; //! Currently acquiring a reading
     volatile int intCount;   //! The number of interrupts, and bits received
     volatile unsigned long lastInt;  //! When was the last interrupt received
     volatile byte bits[MSG_BITS];    //! Received data buffer
