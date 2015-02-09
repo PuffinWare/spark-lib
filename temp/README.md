@@ -19,3 +19,11 @@ int rh = rht.getRH();
 ```
 
 Once the first reading is set, you can call the get methods anytime and update() on a regular schedule.
+
+## Values
+
+Returns integer values for Temp and RH. Caller must devide by 10 to get actual value,
+or just lop off the last digit if you only care about the integer value.
+
+Temp: 351 = 35.1c
+RH:   428 = 42.8rh

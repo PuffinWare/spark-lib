@@ -7,15 +7,13 @@ void interruptHandler() {
   thisX->handleInterrupt();
 }
 
-RHT03::RHT03(int io, int led) {
+RHT03::RHT03(int io) {
   thisX = this;
   ioPin = io;
-  ledPin = led;
 
   acquiring = false;
   lastTemp = 0;
   lastRH = 0;
-  checksum = 0;
   intCount = 0;
   for (int i=0; i<MSG_BITS; i++) {
     bits[i]=0x0;
@@ -24,12 +22,11 @@ RHT03::RHT03(int io, int led) {
   // Start with a HIGH mode
   pinMode(ioPin, OUTPUT);
   digitalWrite(ioPin, HIGH);
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
 }
 
 void RHT03::poll() {
-
+  // todo: main app call this on it's poll() call, this figures
+  // out when to call update. Also check for a failed reading.
 }
 
 void RHT03::update() {
@@ -48,8 +45,6 @@ void RHT03::update() {
   // Then prepare for reading
   pinMode(ioPin, INPUT_PULLUP);
   attachInterrupt(ioPin, interruptHandler, FALLING);
-
-  // digitalWrite(ledPin, HIGH);
 }
 
 int RHT03::getTemp() {
@@ -84,8 +79,7 @@ void RHT03::handleInterrupt() {
 
   lastInt = micros();
 
-  if (dur > 140) {
-    digitalWrite(ledPin, HIGH);
+  if (dur > 140) { // start msg
     return;
   }
 
@@ -97,17 +91,9 @@ void RHT03::handleInterrupt() {
     detachInterrupt(ioPin);
     pinMode(ioPin, OUTPUT);
     digitalWrite(ioPin, HIGH);
-    digitalWrite(ledPin, LOW);
     convertBits();
     acquiring = false;
   }
-}
-
-int RHT03::getIntCount() {
-  return intCount;
-}
-int RHT03::getChecksum() {
-  return checksum;
 }
 
 void RHT03::convertBits() {
@@ -115,7 +101,6 @@ void RHT03::convertBits() {
   uint newRH = 0;
   byte newCS = 0;
 
-  // The first 2 interrupts start the message
   for (int i=0; i<40; i++) {
     if (i < 16) {
       newRH = newRH << 1;
@@ -130,17 +115,10 @@ void RHT03::convertBits() {
   }
 
   // validate
-  byte sum = 0;
-  byte b = newTemp & 0xff; // temp low byte
-  sum += b;
-  b = newTemp >> 8;
-  sum += b;
-  b = newRH & 0xff; // temp low byte
-  sum += b;
-  b = newRH >> 8;
-  sum += b;
-
-  checksum = newCS * (sum == newCS ? 1 : -1);
+  byte sum = newTemp & 0xff;  // temp low byte
+  sum += newTemp >> 8;        // temp high byte
+  sum += newRH & 0xff;        // rh low byte
+  sum += newRH >> 8;          // rh high byte
 
   if (sum == newCS) {
     lastTemp = newTemp;
