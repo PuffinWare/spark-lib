@@ -10,6 +10,26 @@ void interruptHandler() {
   thisX->handleInterrupt();
 }
 
+RHT03::RHT03(int ioPin, int ledPin) {
+  thisX = this;
+  this->ioPin = ioPin;
+  this->ledPin = ledPin;
+
+  acquiring = false;
+  acquireStart = millis();
+  lastTemp = 0;
+  lastRH = 0;
+  intCount = 0;
+
+  // Start with a HIGH mode
+  pinMode(ioPin, OUTPUT);
+  digitalWrite(ioPin, HIGH);
+  if (ledPin != NO_LED) {
+    pinMode(ledPin, OUTPUT);
+    digitalWrite(ledPin, LOW);
+  }
+}
+
 int RHT03::getTempC() {
   return lastTemp;
 }
@@ -22,58 +42,38 @@ int RHT03::getTempF() {
 int RHT03::getRH() {
   return lastRH;
 }
-RHT03::RHT03(int ioPin, int ledPin) {
-  thisX = this;
-  this->ioPin = ioPin;
-  this->ledPin = ledPin;
 
-  acquiring = false;
-  acquireStart = millis();
-  lastTemp = 0;
-  lastRH = 0;
-  intCount = 0;
-  // for (int i=0; i<MSG_BITS; i++) {
-  //   bits[i]=0x0;
-  // }
-
-  // Start with a HIGH mode
-  pinMode(ioPin, OUTPUT);
-  digitalWrite(ioPin, HIGH);
-
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, LOW);
-}
-
-void RHT03::poll() {
+bool RHT03::poll() {
+  bool result = false;
   if (acquiring) {
     if (intCount >= MSG_BITS) { // last bit received
       detachInterrupt(ioPin);
       pinMode(ioPin, OUTPUT);
       digitalWrite(ioPin, HIGH);
-      digitalWrite(ledPin, LOW);
+      if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
       convertBits();
       acquiring = false;
       intCount = 0;
-    } else if (getDuration(millis(), acquireStart) > ACQUIRE_TIMEOUT) {
-      digitalWrite(ledPin, LOW);
+      result = true;
+    } else if (getDuration(millis(), acquireStart) > ACQUIRE_TIMEOUT) { // timeout
+      if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
       detachInterrupt(ioPin);
       acquiring = false;
     }
-    return;
+    return result;
   }
 
   if (getDuration(millis(), acquireStart) > READING_DELAY) {
-    update();
-    return;
+    update(); // trigger an update
   }
-
+  return result;
 }
 
 void RHT03::update() {
   if (acquiring) {
     return;
   }
-  digitalWrite(ledPin, HIGH);
+  if (ledPin != NO_LED) { digitalWrite(ledPin, HIGH); }
 
   acquiring = true;
   acquireStart = millis();
@@ -83,8 +83,8 @@ void RHT03::update() {
   digitalWrite(ioPin, LOW);
   delay(2); // pull low for 1-10ms
   digitalWrite(ioPin, HIGH);
-  delayMicroseconds(10); // pull high for 20-40us
-  // Then prepare for reading
+  delayMicroseconds(10); // pull high then it will pull low in 20-40us
+  // Prepare for reading
   pinMode(ioPin, INPUT_PULLUP);
   attachInterrupt(ioPin, interruptHandler, FALLING);
 }
@@ -98,17 +98,13 @@ void RHT03::update() {
  */
 void RHT03::handleInterrupt() {
   unsigned long now = micros();
-  if (lastInt == 0) { // first falling event, ignore
-    lastInt = now;
-    ignCount += 1;
-    return;
-  }
-
   // Falling edge tells us how long it's been high, determining 0 or 1
   unsigned long dur = getDuration(now, lastInt);
   lastInt = now;
 
-  if (dur > 150) { // start msg
+  // First falling edge is the device starting upg, the second is it's start msg
+  // Both are ignored, but sometimes we do not receive the first.
+  if (dur > 150) {
     ignCount += 1;
     return;
   }
