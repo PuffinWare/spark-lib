@@ -12,7 +12,7 @@ TMP3x::TMP3x(int analogPin, int numReadings, long delay) {
   readings = (double*)malloc(maxReadings * sizeof(double));
 }
 
-void TMP3x::poll() {
+bool TMP3x::poll() {
   unsigned long now = millis();
   unsigned long dur = (now > lastReading)
                     ? now - lastReading
@@ -21,7 +21,9 @@ void TMP3x::poll() {
   if (dur > readingDelay) {
     read();
     lastReading = now;
+    return true;
   }
+  return false;
 }
 
 int TMP3x::getTempC() {

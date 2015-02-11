@@ -6,24 +6,59 @@ delay-check-loop routines. Allows the spark to do other things.
 
 ## Usage
 
+### RHT03
+#### Code Example
 ```
 RHT03 rht = RHT03(ioPin);
 
-rht.update();  // call this periodically > 2sec
-```
-50ms or so later the first temp will be available.
-```
-int temp = rht.getTemp();
-int rh = rht.getRH();
+void loop() {
+  bool update = rht.poll();
+
+  ...
+
+  if (update) {
+    int temp = rht.getTemp();
+    int rh = rht.getRH();
+    doStuff(temp, rh);
+  }
+}
 
 ```
 
-Once the first reading is set, you can call the get methods anytime and update() on a regular schedule.
+#### Debugging
+If you pass in a valide digial pin with an LED connected, you can visualze the comm with the RHT03:
+```
+RHT03 rht = RHT03(ioPin, ledPin);
+```
 
-## Values
+### TMP3x
+The TMP3x series temp sensors are a little flaky and jump around a little, even with a small cap
+between the data pin and ground. The *numReadings* value will control how many readings, each
+taken *delay* millis apart, will be collected to generate an average. Values will be returned
+even before the full *numReadings* was reached.
+
+#### Code Example
+```
+TMP3x tmp = TMP3x(anlgPin, 10, 1000);
+
+void loop() {
+  bool update = tmp.poll();
+
+  ...
+
+  if (update) {
+    int temp = rht.getTemp();
+    doStuff(temp);
+  }
+}
+
+```
+
+### Values
 
 Returns integer values for Temp and RH. Caller must devide by 10 to get actual value,
 or just lop off the last digit if you only care about the integer value.
 
 Temp: 351 = 35.1c
+
 RH:   428 = 42.8rh
