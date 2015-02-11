@@ -1,59 +1,94 @@
 #include "RHT03.h"
 #include "spark_wiring.h"
 
+#define ACQUIRE_TIMEOUT  1000
+#define READING_DELAY  5000
+
 // linker issues forced me to do this... probably a better way?
 static RHT03 *thisX;
 void interruptHandler() {
   thisX->handleInterrupt();
 }
 
-RHT03::RHT03(int io) {
+int RHT03::getTempC() {
+  return lastTemp;
+}
+
+int RHT03::getTempF() {
+  double t = lastTemp;
+  return int(t * 1.8) + 320;
+}
+
+int RHT03::getRH() {
+  return lastRH;
+}
+RHT03::RHT03(int ioPin, int ledPin) {
   thisX = this;
-  ioPin = io;
+  this->ioPin = ioPin;
+  this->ledPin = ledPin;
 
   acquiring = false;
+  acquireStart = millis();
   lastTemp = 0;
   lastRH = 0;
   intCount = 0;
-  for (int i=0; i<MSG_BITS; i++) {
-    bits[i]=0x0;
-  }
+  // for (int i=0; i<MSG_BITS; i++) {
+  //   bits[i]=0x0;
+  // }
 
   // Start with a HIGH mode
   pinMode(ioPin, OUTPUT);
   digitalWrite(ioPin, HIGH);
+
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
 }
 
 void RHT03::poll() {
-  // todo: main app call this on it's poll() call, this figures
-  // out when to call update. Also check for a failed reading.
+  if (acquiring) {
+    if (intCount >= MSG_BITS) { // last bit received
+      detachInterrupt(ioPin);
+      pinMode(ioPin, OUTPUT);
+      digitalWrite(ioPin, HIGH);
+      digitalWrite(ledPin, LOW);
+      convertBits();
+      acquiring = false;
+      intCount = 0;
+    } else if (getDuration(millis(), acquireStart) > ACQUIRE_TIMEOUT) {
+      digitalWrite(ledPin, LOW);
+      detachInterrupt(ioPin);
+      acquiring = false;
+    }
+    return;
+  }
+
+  if (getDuration(millis(), acquireStart) > READING_DELAY) {
+    update();
+    return;
+  }
+
 }
 
 void RHT03::update() {
   if (acquiring) {
     return;
   }
+  digitalWrite(ledPin, HIGH);
 
-  intCount = 0;
-  intFirst = true;
   acquiring = true;
-  lastInt = 0;
+  acquireStart = millis();
+  intCount = 0;
+  ignCount = 0;
+  lastInt = micros();
   digitalWrite(ioPin, LOW);
-  delay(10); // pull low for 1-10ms
+  delay(2); // pull low for 1-10ms
   digitalWrite(ioPin, HIGH);
-  delayMicroseconds(40); // pull low for 20-40us
+  delayMicroseconds(10); // pull high for 20-40us
   // Then prepare for reading
   pinMode(ioPin, INPUT_PULLUP);
   attachInterrupt(ioPin, interruptHandler, FALLING);
 }
 
-int RHT03::getTemp() {
-  return lastTemp;
-}
-
-int RHT03::getRH() {
-  return lastRH;
-}
 /*!
  * Once the device is triggered to transmit, there will be 3 pulse types:
  * - low 80us -> high 80us - start sending  (160us)
@@ -62,37 +97,25 @@ int RHT03::getRH() {
  * These durations between falling edges determine the data type
  */
 void RHT03::handleInterrupt() {
+  unsigned long now = micros();
   if (lastInt == 0) { // first falling event, ignore
-    lastInt = micros();
+    lastInt = now;
+    ignCount += 1;
     return;
   }
 
   // Falling edge tells us how long it's been high, determining 0 or 1
-  unsigned long now = micros();
-  unsigned long dur = 0;
-  // micros rolls over every 59.6 seconds
-  if (now > lastInt) {
-    dur = now - lastInt;
-  } else {
-    dur = UINT32_MAX - lastInt + now;
-  }
+  unsigned long dur = getDuration(now, lastInt);
+  lastInt = now;
 
-  lastInt = micros();
-
-  if (dur > 140) { // start msg
+  if (dur > 150) { // start msg
+    ignCount += 1;
     return;
   }
 
   if (intCount < MSG_BITS) { // protect from overrun
-    bits[intCount++] = dur < 100 ? 0x0 : 0x1;
-  }
-
-  if (intCount == MSG_BITS) { // last bit received
-    detachInterrupt(ioPin);
-    pinMode(ioPin, OUTPUT);
-    digitalWrite(ioPin, HIGH);
-    convertBits();
-    acquiring = false;
+    bits[intCount] = dur < 100 ? 0x0 : 0x1;
+    intCount++; // must be separate
   }
 }
 
@@ -123,5 +146,23 @@ void RHT03::convertBits() {
   if (sum == newCS) {
     lastTemp = newTemp;
     lastRH = newRH;
+  } else {
+    ignCount *= -1;
   }
+}
+
+unsigned long RHT03::getDuration(unsigned long now, unsigned long last) {
+  // micros rolls over every 59.6 seconds, millis every 49 days
+  if (now > last) {
+    return now - last;
+  }
+  return (UINT32_MAX - last) + now;
+}
+
+int RHT03::getIntCount() {
+  return intCount;
+}
+
+int RHT03::getIgnCount() {
+  return ignCount;
 }

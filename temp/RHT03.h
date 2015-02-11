@@ -3,7 +3,7 @@
 #define RHT03_H
 #include "spark_wiring.h"
 
-#define MSG_BITS 40 // 40 data bits, and 2 bits to start transmission
+#define MSG_BITS 40 // 40 data bits
 
 /*!
  * RHT03 Temperature and Relative Humidity library
@@ -19,25 +19,32 @@ class RHT03 {
      * @param pin the digital io pin it is connected to (D0 through D4)
      * @param readings How many readings to average for the final value
      */
-    RHT03(int ioPin);
+    RHT03(int ioPin, int ledPin);
 
     void poll();    //! Call this on the main poll loop and it will keep the data updated
     void update();  //! Call this periodically to manually update the values
-    int getTemp();  //! Returns temp * 10, 315 = 31.5c
+    int getTempC();  //! Returns temp * 10, 315 = 31.5c
+    int getTempF();  //! Returns temp * 10, 723 = 72.3f
     int getRH();    //! Returns RH * 10, 585 = 58.5rh
     void handleInterrupt();
+    int getIntCount();
+    int getIgnCount();
 
   private:
     void convertBits();  //! Convert the received bits to Temp and RH
-
+    unsigned long getDuration(unsigned long now, unsigned long last);
     volatile int ioPin;      //! The IO Pin connected to the RHT03
     volatile int lastTemp;   //! The last updated temperature
     volatile int lastRH;     //! The last updated relative humidity
-    volatile bool intFirst;  //! Is this the first interrupt
     volatile bool acquiring; //! Currently acquiring a reading
     volatile int intCount;   //! The number of interrupts, and bits received
-    volatile unsigned long lastInt;  //! When was the last interrupt received
+    volatile int ignCount;   //! Debugging
+    volatile unsigned long lastInt;       //! When was the last interrupt received
+    volatile unsigned long acquireStart;  //! When did we start comm
+    volatile unsigned long lastUpdate;    //! When did we start comm
     volatile byte bits[MSG_BITS];    //! Received data buffer
+
+    volatile int ledPin;     //! Debugging
 };
 
 #endif // RHT03_H
