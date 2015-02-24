@@ -5,9 +5,9 @@
 #include "spark_wiring_spi.h"
 #include "rgbled.h"
 
-#include "font5x7.h"
-#include "font8x16.h"
-#include "fontlargenumber.h"
+#include "font6x8.h"
+#include "font14x16.h"
+#include "font11x16num.h"
 
 static byte screen_buf[] = {
   /* LCD Memory organised in 64 horizontal pixel and 6 rows of byte
@@ -58,12 +58,15 @@ static byte screen_buf[] = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
  };
 
+// The display controller is actually 128x64 but the display is 64x48
+// So we need to draw in the middle of the logical display.
+// All page updates must use the same offset.
 const page_t FULL_PAGE = {0, 5, 32, 95};
 
 const byte *OledDisplay::fonts[] = {
-   font5x7,
-   font8x16,
-   fontlargenumber
+   FONT_6X8,
+   FONT_14X16,
+   FONT_11X16NUM
 };
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {
@@ -212,31 +215,30 @@ void OledDisplay::setFont(int fontId) {
   activeFont.height = *(font+1);
   activeFont.startChar = *(font+2);
   activeFont.totalChars = *(font+3);
-  activeFont.mapSize = (*(font+4))*100 + *(font+5);
-  activeFont.data = font+6;
+  activeFont.data = font+4;
 }
 
 void OledDisplay::writeChar(int x, int y, const char c) {
   // for now, this is using standard pages for rows
   const byte *font = activeFont.data;
-  int cols = x * (activeFont.width + 1);
-  int charPages = activeFont.height / 8;
-  int charsPerRow = activeFont.mapSize / activeFont.width;
-  //int charsRows = activeFont.totalChars / charsPerRow;
+
+  int cols = x * activeFont.width;
+  int numPages = activeFont.height / 8;
   int charOffset = c - activeFont.startChar;
-  int rowOffset = (activeFont.mapSize * charPages) * (charOffset / charsPerRow);
+
   page_t page = {
-    y * charPages,
-    (y * charPages) + charPages - 1,
+    y * numPages,
+    (y * numPages) + numPages - 1,
     FULL_PAGE.colStart + cols,
     FULL_PAGE.colStart + cols + activeFont.width - 1
   };
   setPage(page);
-  int offset = rowOffset + ((charOffset % charsPerRow) * activeFont.width);
+
+  int offset = charOffset * (activeFont.width * numPages);
   selectDevice(true, false);
-  for (int i=0; i<charPages; i++) {
+  for (int i=0; i<numPages; i++) {
     for (int j=0; j<activeFont.width; j++) {
-      SPI.transfer(*(font + offset + (activeFont.mapSize*i) + j));
+      SPI.transfer(*(font + offset++));
     }
   }
   selectDevice(false, true);
