@@ -17,6 +17,7 @@ void loop() {
   ...
 
   if (update) {
+    // these can be called anytime or when update is true
     int temp = rht.getTemp();
     int rh = rht.getRH();
     doStuff(temp, rh);
@@ -26,7 +27,8 @@ void loop() {
 ```
 
 #### Debugging
-If you pass in a valide digial pin with an LED connected, you can visualze the comm with the RHT03:
+If you pass in a valid digial pin with an LED connected, you can visualze the comm
+with the RHT03. This is helpful getting it working and ensuring that data is being processed.
 ```
 RHT03 rht = RHT03(ioPin, ledPin);
 ```
@@ -35,7 +37,7 @@ RHT03 rht = RHT03(ioPin, ledPin);
 The TMP3x series temp sensors are a little flaky and jump around a little, even with a small cap
 between the data pin and ground. The *numReadings* value will control how many readings, each
 taken *delay* millis apart, will be collected to generate an average. Values will be returned
-even before the full *numReadings* was reached.
+even before the full *numReadings* has been reached.
 
 #### Code Example
 ```

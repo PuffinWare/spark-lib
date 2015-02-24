@@ -26,6 +26,10 @@ bool TMP3x::poll() {
   return false;
 }
 
+double TMP3x::getTempCasDbl() {
+  return curTemp;
+}
+
 int TMP3x::getTempC() {
   return int(curTemp * 10);
 }

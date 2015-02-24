@@ -5,6 +5,7 @@ class TMP3x {
   public:
     TMP3x(int analogPin, int numReadings, long delay);
     bool poll();
+    double getTempCasDbl();
     int getTempC();    //! Returns temp * 10, 315 = 31.5c
     int getTempF();    //! Returns temp * 10, 723 = 72.3f
 
