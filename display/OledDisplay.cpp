@@ -5,9 +5,9 @@
 #include "spark_wiring_spi.h"
 #include "rgbled.h"
 
-#include "font6x8.h"
-#include "font14x16.h"
-#include "font11x16num.h"
+#include "font_6x8.h"
+#include "font_14x16.h"
+#include "font_11x16_num.h"
 
 static byte screen_buf[] = {
   /* LCD Memory organised in 64 horizontal pixel and 6 rows of byte
@@ -66,7 +66,7 @@ const page_t FULL_PAGE = {0, 5, 32, 95};
 const byte *OledDisplay::fonts[] = {
    FONT_6X8,
    FONT_14X16,
-   FONT_11X16NUM
+   FONT_11X16_NUM
 };
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {
