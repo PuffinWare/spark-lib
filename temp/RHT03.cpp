@@ -1,5 +1,4 @@
 #include "RHT03.h"
-#include "spark_wiring.h"
 
 #define ACQUIRE_TIMEOUT  1000
 #define READING_DELAY  5000
@@ -46,11 +45,7 @@ int RHT03::getRH() {
 bool RHT03::poll() {
   bool result = false;
   if (acquiring) {
-    if (intCount >= MSG_BITS) { // last bit received
-      detachInterrupt(ioPin);
-      pinMode(ioPin, OUTPUT);
-      digitalWrite(ioPin, HIGH);
-      if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
+    if (intCount >= MSG_BITS) { // last bit received, process the message
       convertBits();
       acquiring = false;
       intCount = 0;
@@ -102,7 +97,7 @@ void RHT03::handleInterrupt() {
   unsigned long dur = getDuration(now, lastInt);
   lastInt = now;
 
-  // First falling edge is the device starting upg, the second is it's start msg
+  // First falling edge is the device starting up, the second is it's start msg
   // Both are ignored, but sometimes we do not receive the first.
   if (dur > 150) {
     ignCount += 1;
@@ -116,6 +111,11 @@ void RHT03::handleInterrupt() {
 }
 
 void RHT03::convertBits() {
+  detachInterrupt(ioPin);
+  pinMode(ioPin, OUTPUT);
+  digitalWrite(ioPin, HIGH);
+  if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
+
   uint newTemp = 0;
   uint newRH = 0;
   byte newCS = 0;
