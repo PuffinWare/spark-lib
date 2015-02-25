@@ -8,6 +8,9 @@
 #include "font_6x8.h"
 #include "font_14x16.h"
 #include "font_11x16_num.h"
+#include "font_12x16_bold.h"
+#include "font_12x24_num.h"
+#include "font_12x32_num.h"
 
 static byte screen_buf[] = {
   /* LCD Memory organised in 64 horizontal pixel and 6 rows of byte
@@ -66,7 +69,10 @@ const page_t FULL_PAGE = {0, 5, 32, 95};
 const byte *OledDisplay::fonts[] = {
    FONT_6X8,
    FONT_14X16,
-   FONT_11X16_NUM
+   FONT_12X16_BOLD,
+   FONT_11X16_NUM,
+   FONT_12X24_NUM,
+   FONT_12X32_NUM
 };
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {

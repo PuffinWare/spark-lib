@@ -42,6 +42,15 @@
 #define OLED_SEGMENT_REMAP    0xA0
 // *** OLED Commands ***
 
+enum FONTS {
+  font_6x8,
+  font_14x16,
+  font_12x16_bold,
+  font_11x16_num,
+  font_12x24_num,
+  font_12x32_num
+};
+
 typedef struct {
     int pageStart;
     int pageEnd;
