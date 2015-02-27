@@ -3,16 +3,15 @@
 
 #include "spark_wiring.h"
 #include "common.h"
+#include "oled_font.h"
 
 // Clear actions
 #define CLEAR_BUFF    0x01
 #define CLEAR_OLED    0x02
 #define CLEAR_BOTH    0x03
 
-#define PAGE_MIN      0x00
-#define PAGE_MAX      0x05
-#define COL_MIN       0x00
-#define COL_MAX       0x3f
+#define PAGE_MAX      6
+#define COL_MAX       64
 
 // *** OLED Commands ***
 #define OLED_DISPLAY_ON       0xAF
@@ -42,31 +41,12 @@
 #define OLED_SEGMENT_REMAP    0xA0
 // *** OLED Commands ***
 
-enum FONTS {
-  font_6x8,
-  font_14x16,
-  font_12x16_bold,
-  font_11x16_num,
-  font_12x24_num,
-  font_12x32_num
-};
-
 typedef struct {
     int pageStart;
     int pageEnd;
     int colStart;
     int colEnd;
 } page_t;
-
-typedef struct {
-    int id;
-    int width;
-    int height;
-    byte startChar;
-    int totalChars;
-    int mapSize;
-    const byte *data;
-} font_t;
 
 class OledDisplay {
   public:
@@ -88,9 +68,10 @@ class OledDisplay {
     void display(void);
     void line(int begX, int begY, int endX, int endY);
     // Text
-    void setFont(int fontId);
-    void writeChar(int x, int y, const char c);
-    void writeText(int x, int y, const char *text);
+    void setFont(const font_t *font);
+    void writeChar(int x, int y, const char c, int pxOffset=0);
+    void writeCharToDisplay(int x, int y, const char c, int pxOffset=0);
+    void writeText(int x, int y, const char *text, int pxOffset=0);
 
   private:
     void selectDevice(bool enable, bool command);
@@ -99,8 +80,7 @@ class OledDisplay {
     int dcPin;
     int csPin;
     page_t activePage;
-    font_t activeFont;
-    static const byte *fonts[];
+    const font_t *activeFont;
 };
 
 #endif

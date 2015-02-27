@@ -4,16 +4,8 @@
 //#include "stdlib.h"
 #include "spark_wiring_spi.h"
 #include "rgbled.h"
-
 #include "font_6x8.h"
-#include "font_14x16.h"
-#include "font_11x16_num.h"
-#include "font_lcd11x16.h"
-#include "font_8x16.h"
-#include "font_8x16_bold.h"
-#include "font_12x16_bold.h"
-#include "font_12x24_num.h"
-#include "font_12x32_num.h"
+
 
 static byte screen_buf[] = {
   /* LCD Memory organised in 64 horizontal pixel and 6 rows of byte
@@ -68,18 +60,7 @@ static byte screen_buf[] = {
 // So we need to draw in the middle of the logical display.
 // All page updates must use the same offset.
 const page_t FULL_PAGE = {0, 5, 32, 95};
-
-const byte *OledDisplay::fonts[] = {
-   FONT_6X8,
-   FONT_14X16,
-   FONT_8X16,
-   FONT_8X16_BOLD,
-   FONT_12X16_BOLD,
-   FONT_11X16_NUM,
-   FONT_LCD11X16,
-   FONT_12X24_NUM,
-   FONT_12X32_NUM
-};
+const font_t *defaultFont = parseFont(FONT_6X8);
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {
     rstPin = reset;
@@ -150,7 +131,7 @@ void OledDisplay::begin() {
   write(OLED_DISPLAY_ON);
 
   setPage(FULL_PAGE);
-  setFont(0);
+  setFont(defaultFont);
   display();
 }
 
@@ -211,8 +192,8 @@ void OledDisplay::clear(int mode) {
   if (clearOled) {
     resetPage(); // Do I need this?
     selectDevice(true, false);
-    for (int i=0; i<=PAGE_MAX; i++) {
-      for (int j=0; j<=COL_MAX; j++) {
+    for (int i=0; i<PAGE_MAX; i++) {
+      for (int j=0; j<COL_MAX; j++) {
         SPI.transfer(0x00);
       }
     }
@@ -220,46 +201,59 @@ void OledDisplay::clear(int mode) {
   }
 }
 
-void OledDisplay::setFont(int fontId) {
-  const byte *font = fonts[fontId];
-  activeFont.id = fontId;
-  activeFont.width = *font;
-  activeFont.height = *(font+1);
-  activeFont.startChar = *(font+2);
-  activeFont.totalChars = *(font+3);
-  activeFont.data = font+4;
+void OledDisplay::setFont(const font_t *font) {
+  activeFont = font;
 }
 
-void OledDisplay::writeChar(int x, int y, const char c) {
+void OledDisplay::writeCharToDisplay(int x, int y, const char c, int pxOffset) {
   // for now, this is using standard pages for rows
-  const byte *font = activeFont.data;
+  const byte *fontData = activeFont->data;
 
-  int cols = x * activeFont.width;
-  int numPages = activeFont.height / 8;
-  int charOffset = c - activeFont.startChar;
+  int cols = (x * activeFont->width) + pxOffset;
+  int numPages = activeFont->height / 8;
+  int charOffset = c - activeFont->startChar;
 
   page_t page = {
     y * numPages,
     (y * numPages) + numPages - 1,
     FULL_PAGE.colStart + cols,
-    FULL_PAGE.colStart + cols + activeFont.width - 1
+    FULL_PAGE.colStart + cols + activeFont->width - 1
   };
   setPage(page);
 
-  int offset = charOffset * (activeFont.width * numPages);
+  int offset = charOffset * (activeFont->width * numPages);
   selectDevice(true, false);
   for (int i=0; i<numPages; i++) {
-    for (int j=0; j<activeFont.width; j++) {
-      SPI.transfer(*(font + offset++));
+    for (int j=0; j<activeFont->width; j++) {
+      SPI.transfer(*(fontData + offset++));
     }
   }
   selectDevice(false, true);
   setPage(activePage);
 }
-void OledDisplay::writeText(int x, int y, const char *text) {
+
+void OledDisplay::writeChar(int x, int y, const char c, int pxOffset) {
+  const byte *fontData = activeFont->data;
+
+  int numPages = activeFont->height / 8;
+  int charOffset = c - activeFont->startChar;
+
+  int fontIdx = charOffset * (activeFont->width * numPages);
+  for (int row=0; row<numPages; row++) {
+    for (int col=0; col<activeFont->width; col++) {
+      int buffIdx = (activeFont->width * x) // char offset
+                  + (y * COL_MAX * numPages)// page offset
+                  + (row * COL_MAX)         // for multi row fonts
+                  + col + pxOffset;         // iteration
+      screen_buf[buffIdx] = *(fontData + fontIdx++);
+    }
+  }
+}
+
+void OledDisplay::writeText(int x, int y, const char *text, int pxOffset) {
   int i = x;
   for (uint j=0; j<strlen(text); j++) {
-    writeChar(i++, y, *(text + j));
+    writeChar(i++, y, *(text + j), pxOffset);
   }
 }
 
