@@ -76,7 +76,7 @@ void RHT03::update() {
   ignCount = 0;
   lastInt = micros();
   digitalWrite(ioPin, LOW);
-  delay(2); // pull low for 1-10ms
+  delay(5); // pull low for 1-10ms
   digitalWrite(ioPin, HIGH);
   delayMicroseconds(10); // pull high then it will pull low in 20-40us
   // Prepare for reading
