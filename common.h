@@ -1,6 +1,17 @@
 #ifndef COMMON_H
 #define COMMON_H
+#include "spark_wiring.h"
 
-#define uchar unsigned char
+typedef unsigned long ulong;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+ulong get_duration(ulong now, ulong last);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // COMMON_H
