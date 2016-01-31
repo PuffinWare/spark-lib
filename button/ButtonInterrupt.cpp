@@ -1,6 +1,7 @@
 #include "ButtonInterrupt.h"
+#include <spark_wiring_interrupts.h>
 
-ButtonInterrupt::ButtonInterrupt(int ioPin, ulong duration, voidFuncPtr callback, ulong repeat, ulong period) {
+ButtonInterrupt::ButtonInterrupt(int ioPin, ulong duration, callback_t callback, ulong repeat, ulong period) {
   this->ioPin = ioPin;
   this->duration = duration;
   this->callback = callback;
@@ -11,12 +12,12 @@ ButtonInterrupt::ButtonInterrupt(int ioPin, ulong duration, voidFuncPtr callback
   this->invoke = false;
 
   pinMode(ioPin, INPUT_PULLUP);
-  attachInterrupt(ioPin, &ButtonInterrupt::handleInterrupt, FALLING);
+  attachInterrupt(ioPin, &ButtonInterrupt::handleInterrupt, this, FALLING);
 }
 
 bool ButtonInterrupt::poll() {
   int state = digitalRead(ioPin);
-  ulong now = micros();
+  ulong now = millis();
   bool result = false;
 
   switch(mode) {
@@ -31,7 +32,7 @@ bool ButtonInterrupt::poll() {
         } else {
           // needed?
           mode = FIRST;
-          latchTime = micros();
+          latchTime = now;
         }
       }
       break;
@@ -39,16 +40,19 @@ bool ButtonInterrupt::poll() {
     case FIRST: // Down and first press, wait for repeat hold
       if (repeat > 0 && get_duration(now, latchTime) > repeat) {
         mode = REPEAT;
-        latchTime = micros();
+        latchTime = now;
         invoke = true;
       }
       break;
 
     case REPEAT: // Held down, start repeating
       if (period > 0 && get_duration(now, latchTime) > period) {
-        latchTime = micros();
+        latchTime = millis();
         invoke = true;
       }
+      break;
+
+    default:
       break;
   }
 
@@ -66,12 +70,12 @@ bool ButtonInterrupt::poll() {
 
 void ButtonInterrupt::handleInterrupt() {
   int state = digitalRead(ioPin);
-  ulong now = micros();
+  ulong now = millis();
 
   switch(mode) {
     case UP: // Up and waiting for an event
       if (state == LOW) {
-        latchTime = micros();
+        latchTime = now;
         mode = LATCHED;
         invoke = true; // invoke the callback, but not here
       }

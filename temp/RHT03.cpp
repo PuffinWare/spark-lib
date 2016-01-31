@@ -1,16 +1,11 @@
 #include "RHT03.h"
+#include "common.h"
+#include <spark_wiring_interrupts.h>
 
 #define ACQUIRE_TIMEOUT  1000
 #define READING_DELAY  5000
 
-// linker issues forced me to do this... probably a better way?
-static RHT03 *thisX;
-void interruptHandler() {
-  thisX->handleInterrupt();
-}
-
 RHT03::RHT03(int ioPin, int ledPin) {
-  thisX = this;
   this->ioPin = ioPin;
   this->ledPin = ledPin;
 
@@ -44,23 +39,18 @@ int RHT03::getRH() {
 
 bool RHT03::poll() {
   bool result = false;
+
   if (acquiring) {
     if (intCount >= MSG_BITS) { // last bit received, process the message
-      convertBits();
-      acquiring = false;
-      intCount = 0;
+      finished();
       result = true;
-    } else if (getDuration(millis(), acquireStart) > ACQUIRE_TIMEOUT) { // timeout
-      if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
-      detachInterrupt(ioPin);
-      acquiring = false;
+    } else if (get_duration(millis(), acquireStart) > ACQUIRE_TIMEOUT) { // timeout
+      timeout();
     }
-    return result;
-  }
-
-  if (getDuration(millis(), acquireStart) > READING_DELAY) {
+  } else if (get_duration(millis(), acquireStart) > READING_DELAY) {
     update(); // trigger an update
   }
+
   return result;
 }
 
@@ -75,26 +65,39 @@ void RHT03::update() {
   intCount = 0;
   ignCount = 0;
   lastInt = micros();
+  pinMode(ioPin, OUTPUT);
   digitalWrite(ioPin, LOW);
   delay(5); // pull low for 1-10ms
   digitalWrite(ioPin, HIGH);
   delayMicroseconds(10); // pull high then it will pull low in 20-40us
   // Prepare for reading
   pinMode(ioPin, INPUT_PULLUP);
-  attachInterrupt(ioPin, interruptHandler, FALLING);
+  attachInterrupt(ioPin, &RHT03::handleInterrupt, this, FALLING);
+}
+
+void RHT03::finished() {
+  convertBits();
+  acquiring = false;
+  intCount = 0;
+}
+
+void RHT03::timeout() {
+  if (ledPin != NO_LED) { digitalWrite(ledPin, LOW); }
+  detachInterrupt(ioPin);
+  acquiring = false;
 }
 
 /*!
  * Once the device is triggered to transmit, there will be 3 pulse types:
  * - low 80us -> high 80us - start sending  (160us)
  * - low 50us -> high 26-28us - 0 bit       (76-78Us)
- * - low 50us -> high 70us - 1 bit          (129us)
+ * - low 50us -> high 70us - 1 bit          (120us)
  * These durations between falling edges determine the data type
  */
 void RHT03::handleInterrupt() {
   unsigned long now = micros();
   // Falling edge tells us how long it's been high, determining 0 or 1
-  unsigned long dur = getDuration(now, lastInt);
+  unsigned long dur = get_duration(now, lastInt);
   lastInt = now;
 
   // First falling edge is the device starting up, the second is it's start msg
@@ -147,14 +150,6 @@ void RHT03::convertBits() {
   }
 }
 
-unsigned long RHT03::getDuration(unsigned long now, unsigned long last) {
-  // micros rolls over every 59.6 seconds, millis every 49 days
-  if (now > last) {
-    return now - last;
-  }
-  return (UINT32_MAX - last) + now;
-}
-
 int RHT03::getIntCount() {
   return intCount;
 }
@@ -162,3 +157,4 @@ int RHT03::getIntCount() {
 int RHT03::getIgnCount() {
   return ignCount;
 }
+

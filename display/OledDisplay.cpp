@@ -4,7 +4,7 @@
 //#include "stdlib.h"
 #include "spark_wiring_spi.h"
 #include "rgbled.h"
-#include "font_6x8.h"
+#include "font_lcd6x8.h"
 
 
 static byte screen_buf[] = {
@@ -55,12 +55,13 @@ static byte screen_buf[] = {
   0x3f, 0x87, 0x80, 0xc0, 0xc0, 0x40, 0x60, 0x60, 0x30, 0x38, 0x1e, 0x0f, 0x03, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
  };
+ static int BUFF_LEN = PAGE_MAX * COL_MAX;
 
 // The display controller is actually 128x64 but the display is 64x48
 // So we need to draw in the middle of the logical display.
 // All page updates must use the same offset.
 const page_t FULL_PAGE = {0, 5, 32, 95};
-const font_t *defaultFont = parseFont(FONT_6X8);
+const font_t *defaultFont = parseFont(FONT_LCD6X8);
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {
     rstPin = reset;
@@ -245,7 +246,9 @@ void OledDisplay::writeChar(int x, int y, const char c, int pxOffset) {
                   + (y * COL_MAX * numPages)// page offset
                   + (row * COL_MAX)         // for multi row fonts
                   + col + pxOffset;         // iteration
-      screen_buf[buffIdx] = *(fontData + fontIdx++);
+      if (buffIdx < BUFF_LEN) {
+        screen_buf[buffIdx] = *(fontData + fontIdx++);
+      }
     }
   }
 }

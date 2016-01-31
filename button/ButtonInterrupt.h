@@ -1,7 +1,7 @@
 #ifndef BUTTON_INTERRUPT_H
 #define BUTTON_INTERRUPT_H
 #include "spark_wiring.h"
-#include "../common.h"
+#include "common.h"
 
 typedef enum ButtonMode {
   UP,       //! Up and waiting for an event
@@ -12,7 +12,7 @@ typedef enum ButtonMode {
 
 class ButtonInterrupt {
   public:
-    ButtonInterrupt(int ioPin, ulong duration, voidFuncPtr callback=NULL, ulong repeat=0, ulong period=0);
+    ButtonInterrupt(int ioPin, ulong duration, callback_t callback=NULL, ulong repeat=0, ulong period=0);
 
     bool poll();
     void handleInterrupt();
@@ -25,8 +25,8 @@ class ButtonInterrupt {
 
     ulong latchTime;        //! The time the button was initially pressed
     ButtonMode mode;        //! Track the button state and repeat
-    voidFuncPtr callback;   //! Event callback
+    callback_t callback;   //! Event callback
     bool invoke;            //! Invoke callback flag
 };
 
-#endif BUTTON_INTERRUPT_H
+#endif // BUTTON_INTERRUPT_H
