@@ -15,6 +15,7 @@ class ButtonInterrupt {
     ButtonInterrupt(int ioPin, ulong duration, callback_t callback=NULL, ulong repeat=0, ulong period=0);
 
     bool poll();
+    bool checkPinLow();
     void handleInterrupt();
 
   private:

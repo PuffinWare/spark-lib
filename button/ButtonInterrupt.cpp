@@ -8,37 +8,33 @@ ButtonInterrupt::ButtonInterrupt(int ioPin, ulong duration, callback_t callback,
   this->repeat = repeat;
   this->period = period;
 
+  this->mode = UP;
   this->latchTime = 0;
   this->invoke = false;
 
+  RGB.color(0,255,255);
   pinMode(ioPin, INPUT_PULLUP);
   attachInterrupt(ioPin, &ButtonInterrupt::handleInterrupt, this, FALLING);
 }
 
 bool ButtonInterrupt::poll() {
-  int state = digitalRead(ioPin);
   ulong now = millis();
   bool result = false;
 
   switch(mode) {
     case LATCHED: // Down and first press, de-bounce short presses
-      if (get_duration(now, latchTime) > duration) {
-        // ignore events during de-bounce time
-        break;
-      } else {
-        if (state == HIGH) {
-          // Button release, reset and start over
-          mode = UP;
-        } else {
-          // needed?
+      if ((now - latchTime) > duration) {
+        if (checkPinLow()) {
           mode = FIRST;
           latchTime = now;
+          invoke = true;
         }
       }
       break;
 
     case FIRST: // Down and first press, wait for repeat hold
-      if (repeat > 0 && get_duration(now, latchTime) > repeat) {
+      if (checkPinLow() && repeat > 0 && (now - latchTime) > repeat) {
+        RGB.color(0,0,255);
         mode = REPEAT;
         latchTime = now;
         invoke = true;
@@ -46,7 +42,7 @@ bool ButtonInterrupt::poll() {
       break;
 
     case REPEAT: // Held down, start repeating
-      if (period > 0 && get_duration(now, latchTime) > period) {
+      if (checkPinLow() && period > 0 && (now - latchTime) > period) {
         latchTime = millis();
         invoke = true;
       }
@@ -68,31 +64,30 @@ bool ButtonInterrupt::poll() {
   return result;
 }
 
+bool ButtonInterrupt::checkPinLow()  {
+  if (digitalRead(ioPin) == LOW) {
+    return true;
+  }
+
+  // Button released, reset and start over
+  RGB.color(255, 0, 0);
+  mode = UP;
+  return false;
+}
+
 void ButtonInterrupt::handleInterrupt() {
-  int state = digitalRead(ioPin);
   ulong now = millis();
+//#ifdef PUFFIN_DEBUG
+  RGB.color(0,255,0);
+//#endif
 
   switch(mode) {
     case UP: // Up and waiting for an event
-      if (state == LOW) {
-        latchTime = now;
-        mode = LATCHED;
-        invoke = true; // invoke the callback, but not here
-      }
+      latchTime = now;
+      mode = LATCHED;
       break;
 
-    case LATCHED: // First LOW encountered... ignore others within duration
-      if (get_duration(now, latchTime) < duration) {
-        // ignore events during de-bounce time
-        break;
-      }
-      // fall through
-
-    case FIRST: // Down and first press, de-bounce short presses
-    case REPEAT: // Held down, start repeating
-      if (state == HIGH) { // Button released, start over
-        mode = UP;
-      }
+    default:
       break;
   }
 }
