@@ -1,6 +1,6 @@
 #ifndef BUTTON_INTERRUPT_H
 #define BUTTON_INTERRUPT_H
-#include "spark_wiring.h"
+#include <spark_wiring.h>
 #include "common.h"
 
 typedef enum ButtonMode {
@@ -10,9 +10,13 @@ typedef enum ButtonMode {
   REPEAT    //! Held down, start repeating
 } ButtonMode;
 
+typedef void (*raw_btn_callback) (int);
+typedef std::function<void(int)> obj_btn_callback;
+
 class ButtonInterrupt {
   public:
-    ButtonInterrupt(int ioPin, ulong duration, callback_t callback=NULL, ulong repeat=0, ulong period=0);
+    ButtonInterrupt(int ioPin, ulong duration, raw_btn_callback callback=NULL, ulong repeat=0, ulong period=0);
+    ButtonInterrupt(int ioPin, ulong duration, obj_btn_callback callback=NULL, ulong repeat=0, ulong period=0);
 
     bool poll();
     bool checkPinLow();
@@ -20,13 +24,15 @@ class ButtonInterrupt {
 
   private:
     int ioPin;              //! The pin the button is connected to
+    raw_btn_callback raw_callback;  //! Event callback
+    obj_btn_callback obj_callback;  //! Event callback
+
     ulong duration;         //! De-bounce duration to ignore errant button states, should be short
     ulong repeat;           //! The button down time to start repeat mode - 0 = none
     ulong period;           //! The repeat period
 
     ulong latchTime;        //! The time the button was initially pressed
     ButtonMode mode;        //! Track the button state and repeat
-    callback_t callback;   //! Event callback
     bool invoke;            //! Invoke callback flag
 };
 
