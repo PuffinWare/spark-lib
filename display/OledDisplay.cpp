@@ -64,9 +64,9 @@ const page_t FULL_PAGE = {0, 5, 32, 95};
 const font_t *defaultFont = parseFont(FONT_LCD6X8);
 
 OledDisplay::OledDisplay(int reset, int dc, int cs) {
-    rstPin = reset;
-    dcPin = dc;
-    csPin = cs;
+  rstPin = reset;
+  dcPin = dc;
+  csPin = cs;
 }
 
 void OledDisplay::begin() {
@@ -85,10 +85,10 @@ void OledDisplay::begin() {
   delay(10); // Needs to stay low for 10ms
   digitalWrite(rstPin, HIGH);
 
-  // Init SPI
-  SPI.begin();
-  SPI.setClockDivider(SPI_CLOCK_DIV2);
-  SPI.setDataMode(SPI_MODE0);
+  // Init SPI - TODO: Check if application.cpp already init'ed SPI
+  // SPI.begin();
+  // SPI.setClockDivider(SPI_CLOCK_DIV2);
+  // SPI.setDataMode(SPI_MODE0);
 
   selectDevice(true, true);
 

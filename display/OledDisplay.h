@@ -42,10 +42,10 @@
 // *** OLED Commands ***
 
 typedef struct {
-    int pageStart;
-    int pageEnd;
-    int colStart;
-    int colEnd;
+  int pageStart;
+  int pageEnd;
+  int colStart;
+  int colEnd;
 } page_t;
 
 class OledDisplay {

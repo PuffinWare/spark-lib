@@ -2,8 +2,8 @@
 #include "common.h"
 #include <spark_wiring_interrupts.h>
 
-#define ACQUIRE_TIMEOUT  1000
-#define READING_DELAY  5000
+#define RHT_ACQUIRE_TIMEOUT  1000
+#define RHT_READING_DELAY  5000
 
 RHT03::RHT03(int ioPin, int ledPin) {
   this->ioPin = ioPin;
@@ -41,13 +41,13 @@ bool RHT03::poll() {
   bool result = false;
 
   if (acquiring) {
-    if (intCount >= MSG_BITS) { // last bit received, process the message
+    if (intCount >= RHT_MSG_BITS) { // last bit received, process the message
       finished();
       result = true;
-    } else if (get_duration(millis(), acquireStart) > ACQUIRE_TIMEOUT) { // timeout
+    } else if (millis() - acquireStart > RHT_ACQUIRE_TIMEOUT) { // timeout
       timeout();
     }
-  } else if (get_duration(millis(), acquireStart) > READING_DELAY) {
+  } else if (millis() - acquireStart > RHT_READING_DELAY) {
     update(); // trigger an update
   }
 
@@ -97,7 +97,7 @@ void RHT03::timeout() {
 void RHT03::handleInterrupt() {
   unsigned long now = micros();
   // Falling edge tells us how long it's been high, determining 0 or 1
-  unsigned long dur = get_duration(now, lastInt);
+  unsigned long dur = now - lastInt;
   lastInt = now;
 
   // First falling edge is the device starting up, the second is it's start msg
@@ -107,7 +107,7 @@ void RHT03::handleInterrupt() {
     return;
   }
 
-  if (intCount < MSG_BITS) { // protect from overrun
+  if (intCount < RHT_MSG_BITS) { // protect from overrun
     bits[intCount] = dur < 100 ? 0x0 : 0x1;
     intCount++; // must be separate
   }
