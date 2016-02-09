@@ -6,7 +6,7 @@
 #define HIH_BITS_14 16383
 
 #ifndef PUFFIN_DEBUG
-#define PUFFIN_DEBUG 1
+#define PUFFIN_DEBUG 0
 #endif
 
 HIH6130::HIH6130(byte address) {
@@ -51,7 +51,7 @@ bool HIH6130::poll() {
 
     case REQUEST:
 #ifdef PUFFIN_DEBUG
-      Serial.println("Request");
+      Serial.println("HIH Request");
 #endif
       requestReading();
       event(100, RESPONSE);
@@ -59,10 +59,10 @@ bool HIH6130::poll() {
 
     case RESPONSE:
 #ifdef PUFFIN_DEBUG
-      Serial.println("Response");
+      Serial.println("HIH Response");
 #endif
       readData();
-      event(I2C_READING_DELAY, READY);
+      event(250, READY);
     if (status == HIH_NORMAL) {
         result = true;
       }
@@ -92,7 +92,7 @@ void HIH6130::requestReading() {
 void HIH6130::readData() {
   byte data[4];
   int idx = 0;
-  byte rh_H, rh_L, temp_H, temp_L;
+  //byte rh_H, rh_L, temp_H, temp_L;
   uint32_t newRH, newTemp;
 
   memset(data, 0 , 4);
@@ -106,29 +106,31 @@ void HIH6130::readData() {
   status = (data[0] >> 6) & 0x03;
   if (status != HIH_NORMAL) {
 #ifdef PUFFIN_DEBUG
-    Serial.println("Fail");
+    Serial.println("HIH Fail");
 #endif
     return;
   }
 
-  rh_H = data[0] & 0x3f;
-  rh_L = data[1];
-  temp_H = data[2];
-  temp_L = data[3] >> 2;
+  newRH = ((data[0] & 0x3f) << 8) | data[1];
+  //rh_L = data[1];
+  //temp_H = data[2];
+  //temp_L = data[3];
 #ifdef PUFFIN_DEBUG
+  Serial.println("HIH Data");
   Serial.println(data[0], BIN);
   Serial.println(data[1], BIN);
   Serial.println(data[2], BIN);
   Serial.println(data[3], BIN);
 #endif
 
-  newRH = (((unsigned int)rh_H) << 8) | rh_L;
-  newTemp = (((unsigned int)temp_H) << 8) | temp_L;
+  //newRH = (((unsigned int)rh_H) << 8) | rh_L;
+  newTemp = (data[2] << 8) | data[3];
+  newTemp = newTemp >> 2;
 #ifdef PUFFIN_DEBUG
   Serial.println(newRH);
   Serial.println(newTemp);
 #endif
 
-  lastRH = (newRH * 100) / HIH_BITS_14;
+  lastRH = (newRH * 1000) / HIH_BITS_14;
   lastTemp = (newTemp * 1650) / HIH_BITS_14 - 400;
 }

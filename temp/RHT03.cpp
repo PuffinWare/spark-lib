@@ -2,8 +2,8 @@
 #include "common.h"
 #include <spark_wiring_interrupts.h>
 
-#define RHT_ACQUIRE_TIMEOUT  1000
-#define RHT_READING_DELAY  5000
+#define RHT_ACQUIRE_TIMEOUT  500
+#define RHT_READING_DELAY  500
 
 RHT03::RHT03(int ioPin, int ledPin) {
   this->ioPin = ioPin;

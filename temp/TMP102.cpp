@@ -4,7 +4,7 @@
 
 
 #ifndef PUFFIN_DEBUG
-#define PUFFIN_DEBUG 1
+#define PUFFIN_DEBUG 0
 #endif
 
 TMP102::TMP102(byte address) {
@@ -44,7 +44,7 @@ bool TMP102::poll() {
 
     case REQUEST:
 #ifdef PUFFIN_DEBUG
-      Serial.println("Request");
+      Serial.println("TMP Request");
 #endif
       requestReading();
       event(100, RESPONSE);
@@ -52,10 +52,10 @@ bool TMP102::poll() {
 
     case RESPONSE:
 #ifdef PUFFIN_DEBUG
-      Serial.println("Response");
+      Serial.println("TMP Response");
 #endif
       readData();
-      event(500, READY);
+      event(250, READY);
       result = true;
       break;
   }
@@ -95,6 +95,7 @@ void TMP102::readData() {
     }
   }
 #ifdef PUFFIN_DEBUG
+  Serial.println("TMP Data");
   Serial.println(data[0], BIN);
   Serial.println(data[1], BIN);
 #endif
