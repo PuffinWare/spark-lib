@@ -84,7 +84,6 @@ void TMP102::requestReading() {
 void TMP102::readData() {
   byte data[2];
   int idx = 0;
-  byte temp_H, temp_L;
   uint16_t newTemp;
 
   memset(data, 0 , 2);

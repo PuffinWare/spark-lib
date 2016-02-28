@@ -5,9 +5,9 @@
 #define HIH_ACQUIRE_TIMEOUT  1000
 #define HIH_BITS_14 16383
 
-#ifndef PUFFIN_DEBUG
-#define PUFFIN_DEBUG 0
-#endif
+//#ifndef HIH_DEBUG
+//#define HIH_DEBUG 0
+//#endif
 
 HIH6130::HIH6130(byte address) {
   this->address = address;
@@ -50,7 +50,7 @@ bool HIH6130::poll() {
       break;
 
     case REQUEST:
-#ifdef PUFFIN_DEBUG
+#ifdef HIH_DEBUG
       Serial.println("HIH Request");
 #endif
       requestReading();
@@ -58,7 +58,7 @@ bool HIH6130::poll() {
       break;
 
     case RESPONSE:
-#ifdef PUFFIN_DEBUG
+#ifdef HIH_DEBUG
       Serial.println("HIH Response");
 #endif
       readData();
@@ -105,7 +105,7 @@ void HIH6130::readData() {
 
   status = (data[0] >> 6) & 0x03;
   if (status != HIH_NORMAL) {
-#ifdef PUFFIN_DEBUG
+#ifdef HIH_DEBUG
     Serial.println("HIH Fail");
 #endif
     return;
@@ -115,7 +115,7 @@ void HIH6130::readData() {
   //rh_L = data[1];
   //temp_H = data[2];
   //temp_L = data[3];
-#ifdef PUFFIN_DEBUG
+#ifdef HIH_DEBUG
   Serial.println("HIH Data");
   Serial.println(data[0], BIN);
   Serial.println(data[1], BIN);
@@ -126,7 +126,7 @@ void HIH6130::readData() {
   //newRH = (((unsigned int)rh_H) << 8) | rh_L;
   newTemp = (data[2] << 8) | data[3];
   newTemp = newTemp >> 2;
-#ifdef PUFFIN_DEBUG
+#ifdef HIH_DEBUG
   Serial.println(newRH);
   Serial.println(newTemp);
 #endif
