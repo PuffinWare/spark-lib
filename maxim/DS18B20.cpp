@@ -1,27 +1,32 @@
 #include "DS18B20.h"
 #include <spark_wiring_usbserial.h>
 
-#define DS18B20_DEBUG 1
+//#define DS18B20_DEBUG 1
 
-static const byte READ_TEMP[] = {MAXIM_SKIP_ROM, MAXIM_CONVERT_T};
-static const byte READ_SCRATCH[] = {MAXIM_SKIP_ROM, MAXIM_READ_SCRATCH};
+//static const byte READ_TEMP[] = {MAXIM_SKIP_ROM, MAXIM_CONVERT_T};
+//static const byte READ_SCRATCH[] = {MAXIM_SKIP_ROM, MAXIM_READ_SCRATCH};
 
-static const byte DEVICES[][8] = {
+static const byte DEVICES[NUM_DEVICES][8] = {
     {0x28, 0xAB, 0xE4, 0x56, 0x07, 0x00, 0x00, 0xD4},
     {0x28, 0x0B, 0x77, 0xD4, 0x05, 0x00, 0x00, 0xE0},
-    {0x28, 0x08, 0xD7, 0x43, 0x07, 0x00, 0x00, 0xA2}
+    {0x28, 0x08, 0xD7, 0x43, 0x07, 0x00, 0x00, 0xA2},
+    {0x28, 0x0A, 0xD2, 0x54, 0x07, 0x00, 0x00, 0xA0}
 };
 
-DS18B20::DS18B20(DS2482 *owBridge) {
+/*!
+ * Constructor for reading DS18B20 devices.
+ * @param owBridge the DS2482 that is connected to the sensors
+ * @param interval between reading updates (one update takes > 750ms)
+ */
+DS18B20::DS18B20(DS2482 *owBridge, int interval) {
   this->owBridge = owBridge;
-//  if (address != NULL) {
-//    memcpy(this->address, address, 8);
-//  }
+  this->interval = interval;
   this->waitTime = 0;
-  this->lastTemp = 0;
   this->len = 8;
   this->state = DS18B20_START;
   this->nextState = DS18B20_START;
+
+  memset(this->reading, 0, sizeof(reading));
 }
 
 /*!
@@ -43,7 +48,7 @@ bool DS18B20::poll() {
   // poor man's state machine
   switch(state) {
     case DS18B20_START:
-      changeState(1000, DS18B20_READY);
+      changeState(1000, DS18B20_REQUEST_TEMP);
       break;
 
     case DS18B20_READY:
@@ -57,30 +62,39 @@ bool DS18B20::poll() {
       waitTime = 10;
       break;
 
-    case DS18B20_REQUEST_TEMP:
-#ifdef DS18B20_DEBUG
-      Serial.println("DS18B20 Request Temp");
-#endif
-      buildRequest(MAXIM_CONVERT_T);
-      owBridge->writeTo1W(request, 10);
-      len = 9;
-      pollStatus(800, DS18B20_READ_SCRATCHPAD);
-      break;
-
     case DS18B20_READ_ROM:
 #ifdef DS18B20_DEBUG
-      Serial.println("DS18B20 Read Scratch");
+      Serial.println("DS18B20 Read ROM");
 #endif
       owBridge->writeTo1W(MAXIM_READ_ROM);
       len = 8;
       pollStatus(0, DS18B20_READ_RESPONSE);
       break;
 
+    case DS18B20_REQUEST_TEMP:
+#ifdef DS18B20_DEBUG
+      Serial.println("DS18B20 Request Temp");
+#endif
+      buildRequest(MAXIM_CONVERT_T, true);
+      owBridge->writeTo1W(request, 2);
+      curDevice = 0;
+      pollStatus(750, DS18B20_READ_DEVICES);
+      break;
+
+    case DS18B20_READ_DEVICES:
+#ifdef DS18B20_DEBUG
+      Serial.println("DS18B20 Read Devices");
+#endif
+      owBridge->readFrom1W(len);
+      len = 9;
+      changeState(0, DS18B20_READ_SCRATCHPAD);
+      break;
+
     case DS18B20_READ_SCRATCHPAD:
 #ifdef DS18B20_DEBUG
       Serial.println("DS18B20 Read Scratch");
 #endif
-      buildRequest(MAXIM_READ_SCRATCH);
+      buildRequest(MAXIM_READ_SCRATCH, false);
       owBridge->writeTo1W(request, 10);
       pollStatus(0, DS18B20_READ_RESPONSE);
       break;
@@ -100,9 +114,14 @@ bool DS18B20::poll() {
 #endif
         owBridge->copyBuffer(data, len);
         convertData();
-        state = DS18B20_READY;
-//        changeState(250, DS18B20_REQUEST_TEMP);
-        result = true;
+        curDevice++;
+        if (curDevice < NUM_DEVICES) {
+          changeState(0, DS18B20_READ_DEVICES);
+        } else {
+          state = DS18B20_READY;
+          changeState(interval, DS18B20_REQUEST_TEMP);
+          result = true;
+        }
       }
       break;
   }
@@ -147,24 +166,26 @@ void DS18B20::convertData() {
   Serial.println(data[7], HEX);
 #endif
 
-  uint16_t newTemp;
-  newTemp = (data[1] << 8) | data[0];
-  Serial.println(newTemp, BIN);
+  reading[curDevice] = (data[1] << 8) | data[0];
 
-  lastTemp = (newTemp * 10) / 16;
-  Serial.println(lastTemp);
+#ifdef DS18B20_DEBUG
+  Serial.println(reading[curDevice], BIN);
+  Serial.println(getTempC(curDevice));
+#endif
 }
 
-void DS18B20::buildRequest(const byte command) {
-  request[0] = MAXIM_MATCH_ROM;
-  memcpy(request+1, address, 8);
-  request[9] = command;
+void DS18B20::buildRequest(const byte command, bool all) {
+  request[0] = all ? MAXIM_SKIP_ROM : MAXIM_MATCH_ROM;
+  if (!all) {
+    memcpy(request+1, DEVICES[curDevice], 8);
+  }
+  request[all ? 1 : 9] = command;
 }
 
-int DS18B20::getTempC() {
-  return lastTemp;
+int DS18B20::getTempC(int device) {
+  return (reading[device] * 10) / 16;
 }
 
-int DS18B20::getTempF() {
-  return int(lastTemp * 1.8) + 320;
+int DS18B20::getTempF(int device) {
+  return (reading[device] * 18) / 16 + 320;
 }
