@@ -5,13 +5,12 @@
 #define HIH_ACQUIRE_TIMEOUT  1000
 #define HIH_BITS_14 16383
 
-//#ifndef HIH_DEBUG
 //#define HIH_DEBUG 0
-//#endif
 
-HIH6130::HIH6130(byte address) {
+HIH6130::HIH6130(byte address, int interval, int tempAdjust) {
   this->address = address;
-
+  this->interval = interval;
+  this->tempAdjust = tempAdjust;
   this->mode = START;
   this->lastUpdate = 0;
   this->waitTime = 0;
@@ -62,7 +61,7 @@ bool HIH6130::poll() {
       Serial.println("HIH Response");
 #endif
       readData();
-      event(250, READY);
+      event(interval, READY);
     if (status == HIH_NORMAL) {
         result = true;
       }
@@ -92,7 +91,6 @@ void HIH6130::requestReading() {
 void HIH6130::readData() {
   byte data[4];
   int idx = 0;
-  //byte rh_H, rh_L, temp_H, temp_L;
   uint32_t newRH, newTemp;
 
   memset(data, 0 , 4);
@@ -112,9 +110,6 @@ void HIH6130::readData() {
   }
 
   newRH = ((data[0] & 0x3f) << 8) | data[1];
-  //rh_L = data[1];
-  //temp_H = data[2];
-  //temp_L = data[3];
 #ifdef HIH_DEBUG
   Serial.println("HIH Data");
   Serial.println(data[0], BIN);
@@ -132,5 +127,5 @@ void HIH6130::readData() {
 #endif
 
   lastRH = (newRH * 1000) / HIH_BITS_14;
-  lastTemp = (newTemp * 1650) / HIH_BITS_14 - 400;
+  lastTemp = ((newTemp * 1650) / HIH_BITS_14 - 400) + tempAdjust;
 }

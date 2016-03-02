@@ -21,7 +21,7 @@ public:
    * @param ioPin the digital io pin it is connected to (D0 through D4)
    * @param ledPin the pin of an LED to display reading activity (for testing)
    */
-  HIH6130(byte address = 0x27);
+  HIH6130(byte address = 0x27, int interval=500, int tempAdjust=0);
 
   bool poll();        //! Call this on the main poll loop and it will keep the data updated
   void update();      //! Trigger and update now
@@ -33,6 +33,8 @@ private:
   byte address;       //! The I2C address of the device
   I2C_MODE mode;
   int status;
+  int interval;       //! How often to get an updated reading
+  int tempAdjust;     //! Adjustment to the temp reading to calibrate
   ulong eventTime;    //! When did we start something
   ulong waitTime;     //! How long should we wait before next op
   ulong lastUpdate;   //! When did we last get a reading
