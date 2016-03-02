@@ -91,7 +91,7 @@ private:
   void send(byte command, bool stop);
   void sendData(byte command, byte data, bool stop);
   void readByte();
-  void writeConfig(bool ows, bool spu, bool apu);
+  void writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp);
 };
 
 #endif //HIH6130_H

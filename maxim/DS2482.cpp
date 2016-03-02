@@ -2,17 +2,9 @@
 #include <spark_wiring_i2c.h>
 #include <spark_wiring_usbserial.h>
 
-#define DS2482_DEBUG 1
+//#define DS2482_DEBUG 1
 
 static const byte READ_BYTE_REQ[] = { MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA };
-
-//static const STATE_ENTRY STATE_TABLE[] = {
-//  { DS_START, 0x00, 1000, DS_DEV_RESET },
-//  { DS_DEV_RESET, 0x00, 10, DS_1W_RESET },
-//  { DS_1W_RESET, 0x00, 1000, DS_CONFIG },
-//  { DS_CONFIG, 0x00, 1000, DS_READ_CONFIG },
-//  { DS_NONE, 0x00, 1000, DS_START }
-//};
 
 DS2482::DS2482(byte address) {
   this->address = address;
@@ -193,27 +185,33 @@ void DS2482::pollStatus(ulong wait, DS_STATE next) {
 void DS2482::send(byte command, bool stop) {
   Wire.beginTransmission(address);
   Wire.write(command);
+#ifdef DS2482_DEBUG
   Serial.printlnf("write:%x", command);
+#endif
   Wire.endTransmission(stop);
 }
 
 void DS2482::sendData(byte command, byte data, bool stop) {
   Wire.beginTransmission(address);
   Wire.write(command);
+#ifdef DS2482_DEBUG
   Serial.printlnf("write:%x", command);
+#endif
   Wire.write(data);
+#ifdef DS2482_DEBUG
   Serial.printlnf("write:%x", data);
+#endif
   Wire.endTransmission(stop);
 }
 
 /*!
  * Write config to DS2483
  */
-void DS2482::writeConfig(bool ows, bool spu, bool apu) {
+void DS2482::writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp) {
   byte cfg = 0x00;
-  cfg |= ows ? 0x08 : 0x00;
-  cfg |= spu ? 0x04 : 0x00;
-  cfg |= apu ? 0x01 : 0x00;
+  cfg |= owSpeed ? 0x08 : 0x00;
+  cfg |= strongPullUp ? 0x04 : 0x00;
+  cfg |= activePullUp ? 0x01 : 0x00;
   cfg |= (~cfg << 4);
   sendData(MAXIM_WRITE_CONFIG, cfg, false);
 }
@@ -261,13 +259,15 @@ void DS2482::readStatus(bool setPtr) {
 
 void DS2482::readByte() {
   Wire.beginTransmission(address);
-  Wire.write(READ_BYTE_REQ, 2);
-  Serial.printlnf("write:");
+  Wire.write(MAXIM_SET_READ_PTR);
+  Wire.write(MAXIM_REG_READ_DATA);
   Wire.endTransmission(false);
 
-  Serial.println("-- Read --");
   Wire.requestFrom((int)address, 1);
   response[idx] = Wire.read();
+#ifdef DS2482_DEBUG
+  Serial.println("-- Read --");
   Serial.println(response[idx], BIN);
+#endif
   idx++;
 }
