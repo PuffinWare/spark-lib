@@ -49,38 +49,38 @@ typedef struct {
 } page_t;
 
 class OledDisplay {
-  public:
-    OledDisplay(int reset, int dc, int cs);
+public:
+  OledDisplay(int reset, int dc, int cs);
 
-    void begin(void);
-    void end(void);
+  void begin(void);
+  void end(void);
 
-    // fundamentals
-    void command(byte cmd);
-    void setByte(int page, int col, byte val);
-    void fill(byte val);
+  // fundamentals
+  void command(byte cmd);
+  void setByte(int page, int col, byte val);
+  void fill(byte val);
 
-    void resetPage();
-    void setPage(page_t page);
+  void resetPage();
+  void setPage(page_t page);
 
-    // Drawing
-    void clear(int mode);
-    void display(void);
-    void line(int begX, int begY, int endX, int endY);
-    // Text
-    void setFont(const font_t *font);
-    void writeChar(int x, int y, const char c, int pxOffset=0);
-    void writeCharToDisplay(int x, int y, const char c, int pxOffset=0);
-    void writeText(int x, int y, const char *text, int pxOffset=0);
+  // Drawing
+  void clear(int mode);
+  void display(void);
+  void line(int begX, int begY, int endX, int endY);
+  // Text
+  void setFont(const font_t *font);
+  void writeCharToDisplay(int x, int y, const char c, int pxOffset=0);
+  void writeChar(int x, int y, const char c, int pxOffset=0, bool invert=false);
+  void writeText(int x, int y, const char *text, int pxOffset=0, bool invert=false);
 
-  private:
-    void selectDevice(bool enable, bool command);
-    void write(byte data);
-    int rstPin;
-    int dcPin;
-    int csPin;
-    page_t activePage;
-    const font_t *activeFont;
+private:
+  void selectDevice(bool enable, bool command);
+  void write(byte data);
+  int rstPin;
+  int dcPin;
+  int csPin;
+  page_t activePage;
+  const font_t *activeFont;
 };
 
 #endif

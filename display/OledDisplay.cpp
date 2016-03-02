@@ -233,7 +233,7 @@ void OledDisplay::writeCharToDisplay(int x, int y, const char c, int pxOffset) {
   setPage(activePage);
 }
 
-void OledDisplay::writeChar(int x, int y, const char c, int pxOffset) {
+void OledDisplay::writeChar(int x, int y, const char c, int pxOffset, bool invert) {
   const byte *fontData = activeFont->data;
 
   int numPages = activeFont->height / 8;
@@ -247,16 +247,17 @@ void OledDisplay::writeChar(int x, int y, const char c, int pxOffset) {
                   + (row * COL_MAX)         // for multi row fonts
                   + col + pxOffset;         // iteration
       if (buffIdx < BUFF_LEN) {
-        screen_buf[buffIdx] = *(fontData + fontIdx++);
+        byte b = *(fontData + fontIdx++);
+        screen_buf[buffIdx] = invert ? ~b : b;
       }
     }
   }
 }
 
-void OledDisplay::writeText(int x, int y, const char *text, int pxOffset) {
+void OledDisplay::writeText(int x, int y, const char *text, int pxOffset, bool invert) {
   int i = x;
   for (uint j=0; j<strlen(text); j++) {
-    writeChar(i++, y, *(text + j), pxOffset);
+    writeChar(i++, y, *(text + j), pxOffset, invert);
   }
 }
 
