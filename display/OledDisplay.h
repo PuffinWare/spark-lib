@@ -70,8 +70,8 @@ public:
   // Text
   void setFont(const font_t *font);
   void writeCharToDisplay(int x, int y, const char c, int pxOffset=0);
-  void writeChar(int x, int y, const char c, int pxOffset=0, bool invert=false);
-  void writeText(int x, int y, const char *text, int pxOffset=0, bool invert=false);
+  void writeChar(int x, int y, const char c, int xOffset=0, int yOffset=0, bool invert=false);
+  void writeText(int x, int y, const char *text, int xOffset=0, int yOffset=0, bool invert=false);
 
 private:
   void selectDevice(bool enable, bool command);

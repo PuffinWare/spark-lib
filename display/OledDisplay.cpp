@@ -54,8 +54,8 @@ static byte screen_buf[] = {
   0x03, 0x07, 0x0f, 0x0f, 0x1e, 0x1c, 0x3c, 0x38, 0x78, 0x70, 0xf0, 0xe0, 0xe0, 0xf0, 0xfc, 0x7f,
   0x3f, 0x87, 0x80, 0xc0, 0xc0, 0x40, 0x60, 0x60, 0x30, 0x38, 0x1e, 0x0f, 0x03, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
- };
- static int BUFF_LEN = PAGE_MAX * COL_MAX;
+};
+static int BUFF_LEN = PAGE_MAX * COL_MAX;
 
 // The display controller is actually 128x64 but the display is 64x48
 // So we need to draw in the middle of the logical display.
@@ -78,7 +78,7 @@ void OledDisplay::begin() {
   digitalWrite(dcPin, HIGH);
   digitalWrite(csPin, HIGH);
 
-    // Display reset
+  // Display reset
   digitalWrite(rstPin, HIGH);
   delay(5);
   digitalWrite(rstPin, LOW);
@@ -233,7 +233,7 @@ void OledDisplay::writeCharToDisplay(int x, int y, const char c, int pxOffset) {
   setPage(activePage);
 }
 
-void OledDisplay::writeChar(int x, int y, const char c, int pxOffset, bool invert) {
+void OledDisplay::writeChar(int x, int y, const char c, int xOffset, int yOffset, bool invert) {
   const byte *fontData = activeFont->data;
 
   int numPages = activeFont->height / 8;
@@ -244,8 +244,10 @@ void OledDisplay::writeChar(int x, int y, const char c, int pxOffset, bool inver
     for (int col=0; col<activeFont->width; col++) {
       int buffIdx = (activeFont->width * x) // char offset
                   + (y * COL_MAX * numPages)// page offset
+                  + (yOffset * COL_MAX)     // user row offset
                   + (row * COL_MAX)         // for multi row fonts
-                  + col + pxOffset;         // iteration
+                  + xOffset                 // user col offset
+                  + col;                    // iteration
       if (buffIdx < BUFF_LEN) {
         byte b = *(fontData + fontIdx++);
         screen_buf[buffIdx] = invert ? ~b : b;
@@ -254,10 +256,10 @@ void OledDisplay::writeChar(int x, int y, const char c, int pxOffset, bool inver
   }
 }
 
-void OledDisplay::writeText(int x, int y, const char *text, int pxOffset, bool invert) {
+void OledDisplay::writeText(int x, int y, const char *text, int xOffset, int yOffset, bool invert) {
   int i = x;
   for (uint j=0; j<strlen(text); j++) {
-    writeChar(i++, y, *(text + j), pxOffset, invert);
+    writeChar(i++, y, *(text + j), xOffset, yOffset, invert);
   }
 }
 
@@ -273,7 +275,6 @@ void OledDisplay::display(void) {
 void OledDisplay::write(byte data) {
   SPI.transfer(data);
 }
-
 
 void OledDisplay::line(int begX, int begY, int endX, int endY) {
 }
