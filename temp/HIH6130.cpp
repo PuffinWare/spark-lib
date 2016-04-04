@@ -7,8 +7,8 @@
 
 //#define HIH_DEBUG 0
 
-HIH6130::HIH6130(byte address, int interval, int tempAdjust) {
-  this->address = address;
+HIH6130::HIH6130(byte address, int interval, int tempAdjust)
+    : I2CBase(address) {
   this->interval = interval;
   this->tempAdjust = tempAdjust;
   this->mode = START;
@@ -52,19 +52,24 @@ bool HIH6130::poll() {
 #ifdef HIH_DEBUG
       Serial.println("HIH Request");
 #endif
-      requestReading();
-      event(100, RESPONSE);
+      if (i2cSend()) {
+        event(100, RESPONSE);
+      } else {
+        event(interval, READY);
+      }
       break;
 
     case RESPONSE:
 #ifdef HIH_DEBUG
       Serial.println("HIH Response");
 #endif
-      readData();
-      event(interval, READY);
-    if (status == HIH_NORMAL) {
-        result = true;
+      if (i2cRead(4)) {
+        readData();
+        if (status == HIH_NORMAL) {
+          result = true;
+        }
       }
+      event(interval, READY);
       break;
   }
 
@@ -83,25 +88,10 @@ void HIH6130::event(ulong wait, I2C_MODE next) {
   eventTime = millis();
 }
 
-void HIH6130::requestReading() {
-  Wire.beginTransmission(address);
-  Wire.endTransmission();
-}
-
 void HIH6130::readData() {
-  byte data[4];
-  int idx = 0;
   uint32_t newRH, newTemp;
 
-  memset(data, 0 , 4);
-  Wire.requestFrom((int)address, (int)4);
-  while (idx < 4) {
-    while(Wire.available() > 0) {
-      data[idx++] = Wire.read();
-    }
-  }
-
-  status = (data[0] >> 6) & 0x03;
+  status = (i2cData[0] >> 6) & 0x03;
   if (status != HIH_NORMAL) {
 #ifdef HIH_DEBUG
     Serial.println("HIH Fail");
@@ -109,7 +99,7 @@ void HIH6130::readData() {
     return;
   }
 
-  newRH = ((data[0] & 0x3f) << 8) | data[1];
+  newRH = ((i2cData[0] & 0x3f) << 8) | i2cData[1];
 #ifdef HIH_DEBUG
   Serial.println("HIH Data");
   Serial.println(data[0], BIN);
@@ -119,7 +109,7 @@ void HIH6130::readData() {
 #endif
 
   //newRH = (((unsigned int)rh_H) << 8) | rh_L;
-  newTemp = (data[2] << 8) | data[3];
+  newTemp = (i2cData[2] << 8) | i2cData[3];
   newTemp = newTemp >> 2;
 #ifdef HIH_DEBUG
   Serial.println(newRH);

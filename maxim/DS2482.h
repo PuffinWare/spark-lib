@@ -2,6 +2,7 @@
 #define DS2482_H
 #include <spark_wiring.h>
 #include "common.h"
+#include "I2CBase.h"
 
 // Registers
 #define MAXIM_REG_STATUS      0xF0
@@ -23,6 +24,7 @@
 //! One Wire states
 typedef enum DS_STATE {
   DS_NONE, // None specified
+  DS_FAIL, // Comm failure of some kind
   DS_START,
   DS_DEV_RESET,
   DS_1W_RESET,
@@ -57,7 +59,7 @@ typedef struct {
 /*!
  * DS2482 I2C to 1 Wire Bridge
  */
-class DS2482 {
+class DS2482 : public I2CBase {
 public:
   /*! Constructor
    * @param address The I2C address of the DS2482 (selectable)
@@ -65,9 +67,9 @@ public:
   DS2482(byte address = 0x18);
   DS_STATE poll();
   bool oneWireComplete();
-  void writeTo1W(byte data);
-  void writeTo1W(const byte *data, int len);
-  void readFrom1W(int len);
+  bool writeTo1W(byte data);
+  bool writeTo1W(const byte *data, int len);
+  bool readFrom1W(int len);
   void copyBuffer(byte *dest, int len);
 
 private:
@@ -88,8 +90,6 @@ private:
   void pollStatus(ulong wait, DS_STATE next);
   void readConfig(bool setPtr);
   void readStatus(bool setPtr);
-  void send(byte command, bool stop);
-  void sendData(byte command, byte data, bool stop);
   void readByte();
   void writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp);
 };

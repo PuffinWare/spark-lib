@@ -2,6 +2,7 @@
 #define HIH6130_H
 #include <spark_wiring.h>
 #include "common.h"
+#include "I2CBase.h"
 
 #ifndef NO_LED
 #define NO_LED -1
@@ -15,7 +16,7 @@
  * HIH6130 Temperature and Relative Humidity library
  * Uses an I2C interface
  */
-class HIH6130 {
+class HIH6130 : public I2CBase {
 public:
   /*! Constructor
    * @param ioPin the digital io pin it is connected to (D0 through D4)
@@ -30,7 +31,6 @@ public:
   int getRH();        //! Returns RH * 10, 585 = 58.5rh
 
 private:
-  byte address;       //! The I2C address of the device
   I2C_MODE mode;
   int status;
   int interval;       //! How often to get an updated reading
@@ -41,7 +41,6 @@ private:
   int lastTemp;       //! The last updated temperature
   int lastRH;         //! The last updated relative humidity
 
-  void requestReading();    //! Initiate a reading update
   void readData();          //! Read response and process
   void event(ulong wait, I2C_MODE next); //! State change
 };

@@ -1,5 +1,5 @@
 #include "common.h"
-
+#include <stdlib.h>
 // Core
 #define MICROS_MAX 59652323
 // Photon

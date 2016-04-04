@@ -6,7 +6,8 @@
 
 static const byte READ_BYTE_REQ[] = { MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA };
 
-DS2482::DS2482(byte address) {
+DS2482::DS2482(byte address)
+    : I2CBase(address) {
   this->address = address;
   this->state = DS_START;
   this->nextState = DS_START;
@@ -52,7 +53,7 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("Dev Reset");
 #endif
-      send(MAXIM_DEVICE_RESET, true);
+      i2cSend(MAXIM_DEVICE_RESET, true);
       changeState(10, DS_CONFIG);
       break;
 
@@ -87,7 +88,7 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("1W Reset");
 #endif
-      send(MAXIM_1WR_RESET, true);
+      i2cSend(MAXIM_1WR_RESET, true);
       pollStatus(10, DS_1W_REQUEST);
       break;
 
@@ -105,7 +106,7 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("1W Request");
 #endif
-      sendData(MAXIM_1WR_WRITE_BYTE, request[idx++], false);
+      i2cSend(MAXIM_1WR_WRITE_BYTE, request[idx++], false);
       len--;
       pollStatus(0, len == 0 ?  DS_READY : DS_1W_REQUEST);
       break;
@@ -114,7 +115,7 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("1W Response");
 #endif
-      send(MAXIM_1WR_READ_BYTE, false);
+      i2cSend(MAXIM_1WR_READ_BYTE, false);
       pollStatus(0, DS_RESPONSE);
       break;
 
@@ -136,30 +137,33 @@ DS_STATE DS2482::poll() {
 /*!
  * Write a byte of data out to the 1W device
  */
-void DS2482::writeTo1W(byte data) {
+bool DS2482::writeTo1W(byte data) {
   request[0] = data;
   this->idx = 0;
   this->len = 1;
   changeState(0, DS_1W_RESET);
+  return true;
 }
 
 /*!
  * Write several bytes of data out to the 1W device
  */
-void DS2482::writeTo1W(const byte *data, int len) {
+bool DS2482::writeTo1W(const byte *data, int len) {
   memcpy(request, data, len);
   this->idx = 0;
   this->len = len;
   changeState(0, DS_1W_RESET);
+  return true;
 }
 
 /*!
  * Initiate a read from the 1W device
  */
-void DS2482::readFrom1W(int len) {
+bool DS2482::readFrom1W(int len) {
   this->idx = 0;
   this->len = len;
   changeState(0, DS_1W_RESPONSE);
+  return true;
 }
 
 /*!
@@ -182,28 +186,6 @@ void DS2482::pollStatus(ulong wait, DS_STATE next) {
   state = DS_POLL_1W_BUSY;
 }
 
-void DS2482::send(byte command, bool stop) {
-  Wire.beginTransmission(address);
-  Wire.write(command);
-#ifdef DS2482_DEBUG
-  Serial.printlnf("write:%x", command);
-#endif
-  Wire.endTransmission(stop);
-}
-
-void DS2482::sendData(byte command, byte data, bool stop) {
-  Wire.beginTransmission(address);
-  Wire.write(command);
-#ifdef DS2482_DEBUG
-  Serial.printlnf("write:%x", command);
-#endif
-  Wire.write(data);
-#ifdef DS2482_DEBUG
-  Serial.printlnf("write:%x", data);
-#endif
-  Wire.endTransmission(stop);
-}
-
 /*!
  * Write config to DS2483
  */
@@ -213,7 +195,7 @@ void DS2482::writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp) {
   cfg |= strongPullUp ? 0x04 : 0x00;
   cfg |= activePullUp ? 0x01 : 0x00;
   cfg |= (~cfg << 4);
-  sendData(MAXIM_WRITE_CONFIG, cfg, false);
+  i2cSend(MAXIM_WRITE_CONFIG, cfg, false);
 }
 
 /*!
@@ -221,11 +203,11 @@ void DS2482::writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp) {
  */
 void DS2482::readConfig(bool setPtr) {
   if (setPtr) {
-    sendData(MAXIM_SET_READ_PTR, MAXIM_REG_CONFIG, false);
+    i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_CONFIG, false);
   }
 
-  Wire.requestFrom((int)address, 1);
-  byte config = Wire.read();
+  i2cRead(1);
+  byte config = i2cData[0];
 #ifdef DS2482_DEBUG
   Serial.println("-- Config --");
   Serial.println(config, BIN);
@@ -237,11 +219,11 @@ void DS2482::readConfig(bool setPtr) {
  */
 void DS2482::readStatus(bool setPtr) {
   if (setPtr) {
-    sendData(MAXIM_SET_READ_PTR, MAXIM_REG_STATUS, false);
+    i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_STATUS, false);
   }
 
-  Wire.requestFrom((int)address, 1);
-  byte tempStatus = Wire.read();
+  i2cRead(1);
+  byte tempStatus = i2cData[0];
 #ifdef DS2482_DEBUG
   Serial.println("-- Status --");
   Serial.println(tempStatus, BIN);
@@ -258,13 +240,10 @@ void DS2482::readStatus(bool setPtr) {
 }
 
 void DS2482::readByte() {
-  Wire.beginTransmission(address);
-  Wire.write(MAXIM_SET_READ_PTR);
-  Wire.write(MAXIM_REG_READ_DATA);
-  Wire.endTransmission(false);
+  i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA, false);
 
-  Wire.requestFrom((int)address, 1);
-  response[idx] = Wire.read();
+  i2cRead(1);
+  response[idx] = i2cData[0];
 #ifdef DS2482_DEBUG
   Serial.println("-- Read --");
   Serial.println(response[idx], BIN);

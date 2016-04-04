@@ -1,5 +1,5 @@
-#ifndef BREATHER_H
-#define BREATHER_H
+#ifndef BLINKER_H
+#define BLINKER_H
 
 #include "common.h"
 
@@ -22,4 +22,4 @@ private:
   ulong blinkTime;
 };
 
-#endif // BREATHER_H
+#endif // BLINKER_H

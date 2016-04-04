@@ -48,7 +48,7 @@ bool DS18B20::poll() {
   // poor man's state machine
   switch(state) {
     case DS18B20_START:
-      changeState(1000, DS18B20_REQUEST_TEMP);
+      changeState(1500, DS18B20_REQUEST_TEMP);
       break;
 
     case DS18B20_READY:
