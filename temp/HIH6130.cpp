@@ -1,6 +1,7 @@
 #include "HIH6130.h"
 #include <spark_wiring_i2c.h>
 #include <spark_wiring_usbserial.h>
+#include "cellar_util.h"
 
 #define HIH_ACQUIRE_TIMEOUT  1000
 #define HIH_BITS_14 16383
@@ -55,6 +56,7 @@ bool HIH6130::poll() {
       if (i2cSend()) {
         event(100, RESPONSE);
       } else {
+        blink(3, 100, 150);
         event(interval, READY);
       }
       break;

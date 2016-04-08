@@ -1,7 +1,8 @@
 #include "DS18B20.h"
 #include <spark_wiring_usbserial.h>
+#include "cellar_util.h"
 
-//#define DS18B20_DEBUG 1
+#define DS18B20_DEBUG 1
 
 //static const byte READ_TEMP[] = {MAXIM_SKIP_ROM, MAXIM_CONVERT_T};
 //static const byte READ_SCRATCH[] = {MAXIM_SKIP_ROM, MAXIM_READ_SCRATCH};
@@ -46,6 +47,7 @@ bool DS18B20::poll() {
   waitTime = 0;
 
   // poor man's state machine
+  DS_STATE dsState;
   switch(state) {
     case DS18B20_START:
       changeState(1500, DS18B20_REQUEST_TEMP);
@@ -56,8 +58,14 @@ bool DS18B20::poll() {
       break;
 
     case DS18B20_1W_BUSY:
-      if (owBridge->oneWireComplete()) {
+      dsState = owBridge->poll();
+      if (dsState == DS_READY) {
         state = nextState;
+      } else if (dsState == DS_FAIL) {
+        blink(2, 300, 300);
+        nextState = DS18B20_NONE;
+        state = DS18B20_START;
+        break;
       }
       waitTime = 10;
       break;
@@ -108,7 +116,8 @@ bool DS18B20::poll() {
       break;
 
     case DS18B20_READ_DATA:
-      if (owBridge->oneWireComplete()) {
+      dsState = owBridge->poll();
+      if (dsState == DS_READY) {
 #ifdef DS18B20_DEBUG
         Serial.println("DS18B20 Read Data");
 #endif
@@ -122,6 +131,9 @@ bool DS18B20::poll() {
           changeState(interval, DS18B20_REQUEST_TEMP);
           result = true;
         }
+      } else if (dsState == DS_FAIL) {
+        blink(3, 300, 300);
+        changeState(interval, DS18B20_REQUEST_TEMP);
       }
       break;
   }

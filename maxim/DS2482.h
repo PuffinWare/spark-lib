@@ -24,16 +24,16 @@
 //! One Wire states
 typedef enum DS_STATE {
   DS_NONE, // None specified
-  DS_FAIL, // Comm failure of some kind
+  DS_FAIL, // I2C Comm failure of some kind
   DS_START,
   DS_DEV_RESET,
   DS_1W_RESET,
-  DS_CONFIG,
+  DS_CONFIG,      //5
   DS_READ_CONFIG,
   DS_READY,
   DS_POLL_1W_BUSY,
   DS_1W_REQUEST,
-  DS_1W_RESPONSE,
+  DS_1W_RESPONSE, //10
   DS_RESPONSE
 } DS_STATE;
 
@@ -88,10 +88,10 @@ private:
 
   void changeState(ulong wait, DS_STATE next);
   void pollStatus(ulong wait, DS_STATE next);
-  void readConfig(bool setPtr);
-  void readStatus(bool setPtr);
-  void readByte();
-  void writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp);
+  bool readConfig(bool setPtr);
+  bool readStatus(bool setPtr);
+  bool readByte();
+  bool writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp);
 };
 
 #endif //HIH6130_H

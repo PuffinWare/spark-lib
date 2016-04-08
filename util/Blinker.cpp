@@ -34,7 +34,7 @@ void Blinker::loop(ulong now) {
   }
 
   ulong curTime = now==0 ? millis() : now;
-  if (now < blinkTime) {
+  if (curTime < blinkTime) {
     return;
   }
 

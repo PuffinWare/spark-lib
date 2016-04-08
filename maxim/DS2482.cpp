@@ -2,7 +2,7 @@
 #include <spark_wiring_i2c.h>
 #include <spark_wiring_usbserial.h>
 
-//#define DS2482_DEBUG 1
+#define DS2482_DEBUG 1
 
 static const byte READ_BYTE_REQ[] = { MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA };
 
@@ -37,6 +37,9 @@ DS_STATE DS2482::poll() {
   // the 'next' state will take effect after 1W comm is complete
 
   if (state != DS_POLL_1W_BUSY && nextState != DS_NONE) {
+#ifdef DS2482_DEBUG
+    Serial.printlnf("state: %d", nextState);
+#endif
     state = nextState;
     nextState = DS_NONE;
     readyLogged = false;
@@ -53,32 +56,41 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("Dev Reset");
 #endif
-      i2cSend(MAXIM_DEVICE_RESET, true);
-      changeState(10, DS_CONFIG);
+      if (i2cSend(MAXIM_DEVICE_RESET, true)) {
+        changeState(10, DS_CONFIG);
+      } else {
+        changeState(250, DS_DEV_RESET);
+      }
       break;
 
     case DS_CONFIG:
 #ifdef DS2482_DEBUG
       Serial.println("Send Config");
 #endif
-      writeConfig(false, false, true);
-      changeState(0, DS_READ_CONFIG);
+      if (writeConfig(false, false, true)) {
+        changeState(0, DS_READ_CONFIG);
+      } else {
+        changeState(0, DS_DEV_RESET);
+      }
       break;
 
     case DS_READ_CONFIG:
 #ifdef DS2482_DEBUG
       Serial.println("Read Config");
 #endif
-      readConfig(false);
-      readStatus(true);
-      changeState(0, DS_READY);
+      if (readConfig(false) && readStatus(true)) {
+        changeState(0, DS_READY);
+      } else {
+        changeState(0, DS_FAIL);
+      }
       break;
 
     case DS_READY:
+    case DS_FAIL:
 #ifdef DS2482_DEBUG
       if (!readyLogged) {
         readyLogged = true;
-        Serial.println("Ready");
+        Serial.printlnf(state==DS_READY?"Ready %d ":"Fail %d", millis());
       }
 #endif
       // no op, waiting for something to do
@@ -88,17 +100,23 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("1W Reset");
 #endif
-      i2cSend(MAXIM_1WR_RESET, true);
-      pollStatus(10, DS_1W_REQUEST);
+      if (i2cSend(MAXIM_1WR_RESET, true)) {
+        pollStatus(10, DS_1W_REQUEST);
+      } else {
+        changeState(0, DS_FAIL);
+      }
       break;
 
     case DS_POLL_1W_BUSY:
 #ifdef DS2482_DEBUG
-      Serial.println("Read Status");
+      Serial.printlnf("Read Status %d", millis());
 #endif
-      readStatus(false);
-      if (!status.oneWireBusy) {
-        state = nextState;
+      if (readStatus(false)) {
+        if (!status.oneWireBusy) {
+          state = nextState;
+        }
+      } else {
+        changeState(0, DS_FAIL);
       }
       break;
 
@@ -106,26 +124,35 @@ DS_STATE DS2482::poll() {
 #ifdef DS2482_DEBUG
       Serial.println("1W Request");
 #endif
-      i2cSend(MAXIM_1WR_WRITE_BYTE, request[idx++], false);
-      len--;
-      pollStatus(0, len == 0 ?  DS_READY : DS_1W_REQUEST);
+      if (i2cSend(MAXIM_1WR_WRITE_BYTE, request[idx++], false)) {
+        len--;
+        pollStatus(0, len == 0 ?  DS_READY : DS_1W_REQUEST);
+      } else {
+        changeState(0, DS_FAIL);
+      }
       break;
 
     case DS_1W_RESPONSE:
 #ifdef DS2482_DEBUG
       Serial.println("1W Response");
 #endif
-      i2cSend(MAXIM_1WR_READ_BYTE, false);
-      pollStatus(0, DS_RESPONSE);
+      if (i2cSend(MAXIM_1WR_READ_BYTE, false)) {
+        pollStatus(0, DS_RESPONSE);
+      } else {
+        changeState(0, DS_FAIL);
+      }
       break;
 
     case DS_RESPONSE:
 #ifdef DS2482_DEBUG
       Serial.println("DS Response");
 #endif
-      readByte();
-      len--;
-      changeState(0, len == 0 ?  DS_READY : DS_1W_RESPONSE);
+      if (readByte()) {
+        len--;
+        changeState(0, len == 0 ?  DS_READY : DS_1W_RESPONSE);
+      } else {
+        changeState(0, DS_FAIL);
+      }
       break;
   }
 
@@ -189,43 +216,52 @@ void DS2482::pollStatus(ulong wait, DS_STATE next) {
 /*!
  * Write config to DS2483
  */
-void DS2482::writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp) {
+bool DS2482::writeConfig(bool owSpeed, bool strongPullUp, bool activePullUp) {
   byte cfg = 0x00;
   cfg |= owSpeed ? 0x08 : 0x00;
   cfg |= strongPullUp ? 0x04 : 0x00;
   cfg |= activePullUp ? 0x01 : 0x00;
   cfg |= (~cfg << 4);
-  i2cSend(MAXIM_WRITE_CONFIG, cfg, false);
+  return i2cSend(MAXIM_WRITE_CONFIG, cfg, false);
 }
 
 /*!
  * Read config byte
  */
-void DS2482::readConfig(bool setPtr) {
+bool DS2482::readConfig(bool setPtr) {
   if (setPtr) {
-    i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_CONFIG, false);
+    if (!i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_CONFIG, false)) {
+      return false;
+    }
   }
 
-  i2cRead(1);
+  if (!i2cRead(1)) {
+    return false;
+  }
   byte config = i2cData[0];
 #ifdef DS2482_DEBUG
   Serial.println("-- Config --");
   Serial.println(config, BIN);
 #endif
+  return true;
 }
 
 /*!
  * Read status byte
  */
-void DS2482::readStatus(bool setPtr) {
+bool DS2482::readStatus(bool setPtr) {
   if (setPtr) {
-    i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_STATUS, false);
+    if (!i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_STATUS, false)) {
+      return false;
+    }
   }
 
-  i2cRead(1);
+  if (!i2cRead(1)) {
+    return false;
+  }
   byte tempStatus = i2cData[0];
 #ifdef DS2482_DEBUG
-  Serial.println("-- Status --");
+  Serial.printlnf("-- Status -- %d", millis());
   Serial.println(tempStatus, BIN);
 #endif
 
@@ -237,16 +273,20 @@ void DS2482::readStatus(bool setPtr) {
   status.singleBitResult = (tempStatus & 0x20) == 0x20;
   status.tripletSecondBit = (tempStatus & 0x40) == 0x40;
   status.branchDirTaken = (tempStatus & 0x80) == 0x80;
+  return true;
 }
 
-void DS2482::readByte() {
-  i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA, false);
+bool DS2482::readByte() {
+  if (!i2cSend(MAXIM_SET_READ_PTR, MAXIM_REG_READ_DATA, false)
+      || !i2cRead(1)) {
+    return false;
+  }
 
-  i2cRead(1);
   response[idx] = i2cData[0];
 #ifdef DS2482_DEBUG
   Serial.println("-- Read --");
   Serial.println(response[idx], BIN);
 #endif
   idx++;
+  return true;
 }
